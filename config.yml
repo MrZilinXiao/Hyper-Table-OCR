@@ -1,0 +1,10 @@
+table_line:
+  model_path: './table-line.h5'
+  input_shape: [512, 512]
+  hprob: 0.5
+  vprob: 0.5
+ocr:
+  model_path: ''
+web:
+  host: '0.0.0.0'
+  port: 23333

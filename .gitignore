@@ -1,0 +1,351 @@
+*.png
+*.jpg
+*.json
+*cmake-build-debug*
+*/cmake-build-debug/*
+CMakeFiles
+build
+.idea
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# macOS trash
+
+# General
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Icon must end with two \r
+Icon
+
+# Thumbnails
+._*
+
+# Files that might appear in the root of a volume
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.vscode
+
+# Directories potentially created on remote AFP share
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+*.make
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
+#   However, in case of collaboration, if having platform-specific dependencies or dependencies
+#   having no cross-platform support, pipenv may install dependencies that don't work, or not
+#   install all needed dependencies.
+#Pipfile.lock
+
+# PEP 582; used by e.g. github.com/David-OConnor/pyflow
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+darknet/detimg1/
+
+darknet/MVI_20011/
+
+darknet/det1.txt
+
+darknet/video-02.mp4
+
+darknet/video-01/
+
+darknet/video-01-detimg1/
+
+tools/ua_toolkit/img/
+tools/ua_toolkit/out/
+
+tools/ua_toolkit/DETRAC-Train-Annotations-XML-v3/
+
+tools/ua_toolkit/data/
+
+tools/ua_toolkit/DETRAC-Test-Annotations-XML/
+
+tools/ua_toolkit/train.txt
+
+tools/ua_toolkit/test.txt
+
+tools/ua_toolkit/yolov4.conv.137
+
+tools/ua_toolkit/darknet
+
+tools/ua_toolkit/obj.data
+
+tools/ua_toolkit/obj.names
+
+tools/ua_toolkit/backup/
+
+tools/VisDroneTmp/
+
+tools/ua_toolkit/MVI_20011/
+
+tools/ua_toolkit/video-01/
+
+tools/ua_toolkit/video-01-det/
+
+tools/ua_toolkit/MVI_20011-det1.txt
+
+tools/ua_toolkit/video-01-det1.txt
+
+tools/ua_toolkit/yolov4-obj_best.weights
+
+tools/ua_toolkit/MVI_20011-det1/
+
+darknet/MVI_20011_det/
+
+darknet/video-01-det/
+
+darknet/drawMask
+
+darknet/MVI_20011-det1.txt
+
+darknet/MVI_20011.mp4
+
+darknet/obj.data
+
+darknet/obj.names
+
+darknet/video-01-det1.txt
+
+tools/bin
+
+tools/mask.png
+
+darknet/IMG_0390/
+
+darknet/IMG_0390-det/
+
+darknet/0390_v1.jpg
+
+darknet/camHengyang.txt
+
+darknet/IMG_0390-det1.txt
+
+darknet/IMG_0390.MOV
+
+darknet/track_hengyang.txt
+
+darknet/1.mp4
+
+darknet/my-det.txt
+
+darknet/prepare
+
+darknet/track.txt
+
+darknet/outspeed.mp4
+
+1.mp4
+
+yolov4-obj_best.weights
+
+darknet.zip
+
+bad.list
+
+my-det.txt
+
+track.txt
+
+outspeed.mp4
+
+darknet/test.mp4
+
+test.mp4
+
+*.mp4
+
+general.json
+
+cnsoft_backend.zip
+
+darknet/config.json
+
+darknet/general.json
+
+camParam.txt
+
+prepare
+
+C\+\+/darknet
+
+C\+\+/prepare
+
+tools/ua_toolkit/VisDrone2018-DET-train/
+
+tools/ua_toolkit/yolo_mark
+
+yolov5x.pt
+
+retest
+
+C\+\+/retest
+
+darknet/
+
+*.tiff
+
+yolov5l-last.pt
+
+tools/Bochum_all.yml
+
+1.zip
