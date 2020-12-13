@@ -90,7 +90,7 @@ def verify_table(contour, intersections):
 
 
 class EmptyTimer(object):
-    def __init__(self, **kwargs):
+    def __init__(self, *kw, **kwargs):
         pass
 
     def __enter__(self):
@@ -115,6 +115,7 @@ class Timer(object):
         self.msecs = self.secs * 1000
         if self.verbose:
             print('%s consumes %.2f ms' % (self.reason, self.msecs))
+
 
 
 def _order_points(pts):

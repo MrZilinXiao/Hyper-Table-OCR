@@ -182,6 +182,7 @@ class Table(object):
                     table_cell.ocr_content.append(ocr_block.ocr_content)
                     table_cell.matched = True
                     self.ocr_blocks.remove(ocr_block)
+                    break
 
     def build_structure(self, delta_y=10, delta_x=10):
         """
@@ -248,6 +249,9 @@ class Table(object):
                 range_r = checkpoints[j]
                 merged_row[j].col_range = [range_l, range_r]
                 range_l = range_r + 1
+        for kk, unmerged_row in enumerate(self.rows[complete_rows_idx]):
+            for jj in range(len(unmerged_row)):
+                unmerged_row[jj].col_range = [jj, jj]
 
 
 if __name__ == '__main__':
