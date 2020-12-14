@@ -4,7 +4,8 @@ from shapely.geometry import Point, LineString, Polygon
 import itertools
 from bisect import bisect_left
 import cv2
-from utils import draw_boxes
+import copy
+from utils import draw_boxes, Timer
 
 
 # class Table:
@@ -133,6 +134,7 @@ class Table(object):
         :param verbose: whether to show progress
         """
         self.verbose = verbose
+        self.title = ""
         self.row_num, col_num = -1, -1
         self.rows: List[List[TableCell]] = []
         self.coord = coord  # xyxy
@@ -184,19 +186,24 @@ class Table(object):
                     self.ocr_blocks.remove(ocr_block)
                     break
 
-    def build_structure(self, delta_y=10, delta_x=10):
+    def build_structure(self, delta_y=10, delta_x=10, overlap_thr=0.3):
         """
-        对此我们的思路是列举所有的单元格候选，每个单元格表示为（起始行，结束行，起始列，结束列），
-        然后对所有单元格按面积从小到大排序。接着遍历排序好的候选单元格，去判断其上下左右的框线
-        是否都真实存在，若存在，则此单元格就在原图存在。注意到，每当确立一个单元格存在，所有与
-        其共享起始行和起始列的其他单元格则不可能再存在，因为我们不考虑单元格中套着单元格的情况。
-        所以虽然单元格候选集很大，但我们可以利用这一性质在遍历过程中进行剪枝，所以会很高效。
-        步骤：
-        0. 给出可能的最大行、最大列
-        1. self.table_cells 按面积从小到大排序
-        2.
         """
-        # 0. assign cells in rows by different y (average y of two points from upper edge)
+        # 0.0 remove cells who overlap with others too much (abandon)
+        # with Timer('remove (in Match OCR with cells'):
+        #     for j in range(len(self.table_cells) - 1, -1, -1):
+        #         tmp = copy.copy(self.table_cells)  # shallow copy will do its trick
+        #         tmp.pop(j)
+        #         _sum = 0.0
+        #         tmp: List[TableCell]
+        #         for other in tmp:
+        #             _sum += self.table_cells[j].shape.intersection(other.shape).area
+        #         # print("%d: %.4f" % (j, _sum / self.table_cells[j].shape.area))
+        #         if _sum / self.table_cells[j].shape.area > overlap_thr:
+        #             self.table_cells.pop(j)
+        # print("remove cell %d due to overlapping too much" % j)
+
+        # 0.1 assign cells in rows by different y (average y of two points from upper edge)
         if len(self.table_cells) == 0:
             raise ValueError("No available cells! ")
         row_y = self.table_cells[0].upper_y
@@ -227,8 +234,10 @@ class Table(object):
         # calculate col_range by delta_x
         for k, merged_row in enumerate(self.rows[merged_rows_idx]):
             merged_row: List[TableCell]
-            closest_complete_row_idx = self._closest_idx(complete_rows_idx, merged_rows_idx[k])  # find the closest row idx
-            right_match = lambda k1, k2: np.isclose(merged_row[k1].right_x, self.rows[complete_rows_idx[closest_complete_row_idx]][k2].right_x,
+            closest_complete_row_idx = self._closest_idx(complete_rows_idx,
+                                                         merged_rows_idx[k])  # find the closest row idx
+            right_match = lambda k1, k2: np.isclose(merged_row[k1].right_x,
+                                                    self.rows[complete_rows_idx[closest_complete_row_idx]][k2].right_x,
                                                     atol=delta_x)
             left_idx = 0
             checkpoints = []
@@ -252,6 +261,17 @@ class Table(object):
         for kk, unmerged_row in enumerate(self.rows[complete_rows_idx]):
             for jj in range(len(unmerged_row)):
                 unmerged_row[jj].col_range = [jj, jj]
+
+        # remove cells who overlap with others too much
+        for ii in range(len(self.rows) - 1, 0, -1):
+            upper_row = self.rows[ii - 1]
+            for kk, cell in enumerate(self.rows[ii][::-1]):
+                _sum = 0.0
+                for other in upper_row:
+                    _sum += cell.shape.intersection(other.shape).area
+                print("%.4f" % (_sum / cell.shape.area))
+                if _sum / cell.shape.area > overlap_thr:
+                    self.rows[ii].pop(kk)
 
 
 if __name__ == '__main__':
