@@ -8,7 +8,13 @@ table_line:
   hprob: 0.5
   vprob: 0.5
 ocr:
-  model_path: ''
+  type: 'paddle'
+  paddle:
+    det_path: "./inference/ch_ppocr_server_v1.1_det_infer/"
+    rec_path: "./inference/ch_ppocr_mobile_v1.1_rec_infer/"
+  chineseocr:
+    det_path: ""
+    rec_path: ""
 web:
   host: '0.0.0.0'
   port: 23333
