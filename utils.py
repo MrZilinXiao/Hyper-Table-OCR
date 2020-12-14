@@ -486,7 +486,13 @@ def draw_boxes(im, bboxes, color=(0, 0, 0)):
         if type(box) is dict:
             x1, y1, x2, y2, x3, y3, x4, y4 = xy_rotate_box(**box)
         else:
-            x1, y1, x2, y2, x3, y3, x4, y4 = box[:8]
+            if len(box) == 4:
+                _x1, _y1, _x2, _y2 = box[:4]
+                h = _y2 - _y1
+                w = _x2 - _x1
+                x1, y1, x2, y2, x3, y3, x4, y4 = _x1, _y1, _x1 + w, _y1, _x1 + w, _y1 + h, _x1, _y1 + h
+            else:
+                x1, y1, x2, y2, x3, y3, x4, y4 = box[:8]
         c = random.choice(color_candidates)
         cv.line(tmp, (int(x1), int(y1)), (int(x2), int(y2)), c, 1, lineType=cv.LINE_AA)
         cv.line(tmp, (int(x2), int(y2)), (int(x3), int(y3)), c, 1, lineType=cv.LINE_AA)
