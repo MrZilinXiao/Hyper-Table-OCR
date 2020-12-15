@@ -30,12 +30,12 @@ import ocr.tools.infer.utility as utility
 from ppocr.utils.utility import initial_logger
 logger = initial_logger()
 from ppocr.utils.utility import get_image_file_list, check_and_read_gif
-from ppocr.data.det.sast_process import SASTProcessTest
-from ppocr.data.det.east_process import EASTProcessTest
+#from ppocr.data.det.sast_process import SASTProcessTest
+#from ppocr.data.det.east_process import EASTProcessTest
 from ppocr.data.det.db_process import DBProcessTest
 from ppocr.postprocess.db_postprocess import DBPostProcess
-from ppocr.postprocess.east_postprocess import EASTPostPocess
-from ppocr.postprocess.sast_postprocess import SASTPostProcess
+#from ppocr.postprocess.east_postprocess import EASTPostPocess
+#from ppocr.postprocess.sast_postprocess import SASTPostProcess
 
 
 class TextDetector(object):
