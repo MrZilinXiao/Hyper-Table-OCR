@@ -9,10 +9,34 @@
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="css/bootstrap.min.css" crossorigin="anonymous">
 
+    <link rel="stylesheet" href="css/sweetalert.css" crossorigin="anonymous">
+
     <title>Hyper-Table-Recognition</title>
     <style>
-        .backgroundcolor {
+        .enlargeImg_wrapper {
+            display: none;
+            position: fixed;
+            z-index: 999;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            background-position: center;
+            background-color: rgba(52, 52, 52, 0.8);
+            background-size: 37%;
+        }
 
+        img:hover {
+            cursor: zoom-in;
+        }
+
+        .enlargeImg_wrapper:hover {
+            cursor: zoom-out;
+        }
+
+        .backgroundcolor {
             background-color: rgba(86, 61, 124, .15);
             border: 1px solid rgba(86, 61, 124, .2);
         }
@@ -73,16 +97,34 @@
         }
 
         #msg {
-            height: 400px;
+            height: 300px;
             overflow: auto;
             border: 2px solid #000000;
             background-color: #000000;
             color: #ffffff;
         }
+
+        #excel_view {
+            background-color: #ffffff;
+        }
+
+        #button_row {
+            position: relative;
+        }
+
+        #download {
+            cursor: not-allowed;
+        }
+
+        #check_pipeline {
+            cursor: not-allowed;
+        }
+
     </style>
 </head>
 
 <body>
+<div class="imgBox"></div>
 <div class="container-fluid ">
     <!-- 第一栏 -->
     <div class="row ">
@@ -92,24 +134,20 @@
                     <div class="col-6">
                         <div class="col-auto my-1">
                             <label class="sr-only" for="inlineFormInput">URLName</label>
-                            <!--                                <input type="text" class="form-control mb-2" id="inlineFormInput" placeholder="URL...">-->
-                            <!--                                <input class="form-control mb-2" type="text" id="inlineFormInput" placeholder="输入在线图片URL" />-->
                             <input id="inlineFormInput" name="local_image" class="form-control mb-2"
                                    type="file"/>
-                            {#                            <input id="local_image_path" class="form-control mb-2 upload-url" type="text"#}
-                            {#                                   placeholder="点击浏览本地文件"/>#}
 
                         </div>
                     </div>
                     <div class="col-2">
                         <div class="col-auto my-1">
-                            <button class="btn btn-primary" id="local_image_submit" type="button">Submit</button>
+                            <button class="btn btn-primary" id="local_image_submit" type="button">提交</button>
                         </div>
                     </div>
                     <div class="col-2">
                         <div class="col-auto my-2">
                             <label class="mr-sm-2 sr-only" for="inlineFormCustomSelect1">OCR模块</label>
-                            <select class="custom-select mr-sm-2" id="inlineFormCustomSelect1" form="local_image_form"
+                            <select class="custom-select mr-sm-3" id="inlineFormCustomSelect1" form="local_image_form"
                                     name="ocr">
                                 <option value="-1">请选择OCR模块</option>
                                 {% for option in ocr %}
@@ -117,7 +155,7 @@
                                 {% endfor %}
                             </select>
                             <label class="mr-sm-2 sr-only" for="inlineFormCustomSelect2">表格框检测模块</label>
-                            <select class="custom-select mr-sm-2" id="inlineFormCustomSelect2" form="local_image_form"
+                            <select class="custom-select mr-sm-3" id="inlineFormCustomSelect2" form="local_image_form"
                                     name="cell">
                                 <option value="-1">请选择表格框检测模块</option>
                                 {% for option in cell %}
@@ -136,12 +174,6 @@
                                            for="{{ option.value }}">{{ option.desp }}</label>
                                 </div>
                             {% endfor %}
-                            {#                            <div class="custom-control custom-checkbox mr-sm-2">#}
-                            {#                                <input type="checkbox" class="custom-control-input" id="customControlAutosizing2"#}
-                            {#                                       name="fuxuan2">#}
-                            {#                                <label class="custom-control-label" for="customControlAutosizing2">Remember my#}
-                            {#                                    preference</label>#}
-                            {#                            </div>#}
                         </div>
 
                     </div>
@@ -153,18 +185,16 @@
     <div class="row mb-3"></div>
     <!-- 第二栏 -->
     <div class="row mb-3">
-
         <div class="col-6 ">
             <div class="col-auto my-1 background_withhight">
-                <img src="/a1.jpg" class="img-responsive img-rounded" alt="Responsive image" style="height: 300px">
+                <img id="cell_img" src="/default.svg" class="img-responsive img-rounded enlargeImg" alt="default image"
+                     style="height: 300px">
             </div>
-
         </div>
-
         <div class="col-6 ">
-            <div class="col-auto my-1 background_withhight">
-                <img src="/a1.jpg" class="img-responsive img-rounded" alt="Responsive image" style="height: 300px">
+            <div id="excel_view" class="col-auto my-1 background_withhight">
             </div>
+
         </div>
 
 
@@ -172,7 +202,11 @@
     <!-- 实体间隔栏 -->
 
     <div class="row">
-        <div class=" col-12 backgroundcolor">需要的话加padding或者再套一层col-auto my-1</div>
+        <div class="col-12 backgroundcolor" id="button_row">
+            <button class="btn btn-primary" id="download" type="button" disabled="disabled">下载Excel文件</button>
+            <label id="table_title"></label>
+{#            <button class="btn btn-info" id="check_pipeline" type="button" disabled="disabled">查看OCR流水线</button>#}
+        </div>
     </div>
 
     <!-- 间隔栏 -->
@@ -180,28 +214,26 @@
     <!-- 第三栏 -->
     <div class="row">
         <div class=" col-6 ">
-            <div class="col-auto my-1 background_withhight">
-                <img src="/a1.jpg" class="img-responsive img-rounded" alt="Responsive image" style="height: 300px">
+            <div id="echarts_visualization" class="col-auto my-1 background_withhight">
             </div>
         </div>
         <div class=" col-6 ">
-            <div class="col-auto my-1 background_withhight">
-                <img src="/a1.jpg" class="img-responsive img-rounded" alt="Responsive image" style="height: 300px">
-            </div>
+            <div id="msg"></div>
         </div>
     </div>
     <!-- 间隔栏 -->
-    <div class="row mb-3"></div>
+    {#    <div class="row mb-3"></div>#}
     <div class="row">
         <div class="col-12">
-            <div id="msg"></div>
-            {#            <div class="col-auto my-1 backgroundcolor">#}
-            {#                <p>脚注</p>#}
-            {#            </div>#}
+            <div class="row" id="pipeline">
+            </div>
         </div>
     </div>
 </div>
-
+<script
+        lang="javascript"
+        src="js/xlsx.full.min.js"
+></script>
 <script src="js/jquery.min.js"
         crossorigin="anonymous"></script>
 <script src="js/jquery.form.js"
@@ -210,13 +242,40 @@
         crossorigin="anonymous"></script>
 <script src="js/bootstrap.min.js"
         crossorigin="anonymous"></script>
+<script src="js/sweetalert.min.js"
+        crossorigin="anonymous"></script>
+<script src="js/echarts.min.js"
+        crossorigin="anonymous"></script>
 <script>
-    $("#local_image").change(function () {
-        $("#local_image_path").val($(this).val());
-    });
+    //关闭并移除图层
+    function closeImg() {
+        $('.enlargeImg_wrapper').fadeOut(200).remove();
+    }
 
+    //查看大图
+    function enlargeImg() {
+        $(".enlargeImg").click(function () {
+            $('.imgBox').html("<div  class='enlargeImg_wrapper'></div>");
+            var imgSrc = $(this).attr('src');
+            $(".enlargeImg_wrapper").css("background-image", "url(" + imgSrc + ")");
+            $('.enlargeImg_wrapper').fadeIn(200);
+        })
+        $('.imgBox').on('click', '.enlargeImg_wrapper', function () {
+            $('.enlargeImg_wrapper').fadeOut(200).remove();
+        })
+    }
+</script>
+<script>
     // bind click to submit local image detect
     $("#local_image_submit").click(function () {
+        var status_code;
+        var prompt = {
+            'cell': '表格Cell识别',
+            'ocr': 'OCR推理',
+            'preprocessing': '图片预处理',
+            'match': '表格重建与匹配',
+            'flagged': '透视变换结果'
+        }
         var formData = new FormData($('#local_image_form')[0]);
         console.log(formData);
         $.ajax({
@@ -226,17 +285,131 @@
             contentType: false, //必须
             processData: false, //必须
             success: function (result) {
+                console.log(result);
+                status_code = result.status
+                if (!status_code.startsWith("1")) {
+                    swal({
+                        title: "出错了",
+                        text: "错误代码: " + result.status + ", 原因:" + result.desp,
+                        type: "error"
+                    });
+                    return;
+                }
+                var ret_info = result.details;
+                $('#cell_img').attr('src', ret_info.cell[1]);
+                // enable button
+                $("#download").removeAttr("disabled");
+                $("#download").css("cursor", "pointer");
+                $("#download").click(function () {
+                    var $eleForm = $("<form method='get'></form>");
+                    $eleForm.attr("action", ret_info.excel);
+                    $(document.body).append($eleForm);
+                    //提交表单，实现下载
+                    $eleForm.submit();
+                });
+
+
+                // load excel
+                let url = ret_info.excel;
+                let req = new XMLHttpRequest()
+                req.open('GET', url, true)
+                req.responseType = 'arraybuffer'
+                req.onload = (s) => {
+                    let data = new Uint8Array(req.response)
+                    var wb = XLSX.read(data, {type: 'array'})
+                    console.log(wb)
+                    var wsName = wb.SheetNames[0];
+                    $("#table_title").html("表格名称: " + wsName);
+                    var ws = wb.Sheets[wsName];
+                    const excelView = document.getElementById('excel_view');
+                    // 渲染
+                    excelView.innerHTML = XLSX.utils.sheet_to_html(ws, {id: 'excel_table" class="table table-hover table-bordered'});
+                }
+
+                req.send();
+                // visualize run time
+                var mydata = [];
+                for (k in ret_info) {
+                    if (ret_info[k].length !== 2) continue;
+                    mydata.push({value: ret_info[k][0], name: prompt[k] + ': ' + ret_info[k][0].toFixed(2) + 'ms'})
+                }
+                var mychart = echarts.init(document.getElementById('echarts_visualization'));
+                mychart.setOption({
+                    title: {
+                        show: true,//显示策略，默认值true,可选为：true（显示） | false（隐藏）
+                        text: '各阶段耗时分布',//主标题文本，'\n'指定换行
+                        link: '',//主标题文本超链接,默认值true
+                        target: null,//指定窗口打开主标题超链接，支持'self' | 'blank'，不指定等同为'blank'（新窗口）
+                        subtext: '全程耗时: ' + ret_info['total_time'].toFixed(2) + 'ms',//副标题文本，'\n'指定换行
+                        sublink: '',//副标题文本超链接
+                        subtarget: null,//指定窗口打开副标题超链接，支持'self' | 'blank'，不指定等同为'blank'（新窗口）
+                        x: 'center', //水平安放位置，默认为'left'，可选为：'center' | 'left' | 'right' | {number}（x坐标，单位px）
+                        y: 'top',//垂直安放位置，默认为top，可选为：'top' | 'bottom' | 'center' | {number}（y坐标，单位px）
+                        textAlign: null,//水平对齐方式，默认根据x设置自动调整，可选为： left' | 'right' | 'center
+                        backgroundColor: 'rgba(0,0,0,0)',//标题背景颜色，默认'rgba(0,0,0,0)'透明
+                        borderColor: '#ccc',//标题边框颜色,默认'#ccc'
+                        borderWidth: 0,//标题边框线宽，单位px，默认为0（无边框）
+                        padding: 5,//标题内边距，单位px，默认各方向内边距为5，接受数组分别设定上右下左边距
+                        itemGap: 10,//主副标题纵向间隔，单位px，默认为10
+                        textStyle: {//主标题文本样式{"fontSize": 18,"fontWeight": "bolder","color": "#333"}
+                            fontFamily: 'Arial, Verdana, sans...',
+                            fontSize: 15,
+                            fontStyle: 'normal',
+                            fontWeight: 'normal',
+                        },
+                        subtextStyle: {//副标题文本样式{"color": "#aaa"}
+                            fontFamily: 'Arial, Verdana, sans...',
+                            fontSize: 12,
+                            fontStyle: 'normal',
+                            fontWeight: 'normal',
+                        },
+                        zlevel: 0,//一级层叠控制。默认0,每一个不同的zlevel将产生一个独立的canvas，相同zlevel的组件或图标将在同一个canvas上渲染。zlevel越高越靠顶层，canvas对象增多会消耗更多的内存和性能，并不建议设置过多的zlevel，大部分情况可以通过二级层叠控制z实现层叠控制。
+                        z: 6,//二级层叠控制，默认6,同一个canvas（相同zlevel）上z越高约靠顶层。
+                    },
+                    series: [
+                        {
+                            name: '推理时间分布',
+                            type: 'pie',    // 设置图表类型为饼图
+                            radius: '70%',  // 饼图的半径，外半径为可视区尺寸（容器高宽中较小一项）的 55% 长度。
+                            data: mydata
+                        }
+                    ]
+                });
+                // show pipeline
+                var new_pipeline_html = "";
+                for (k in ret_info) {
+                    if (ret_info[k].length === 2) {
+                        new_pipeline_html += "<div class=\"col-auto my-3 background_withhight\"><div class=\"card\" style=\"width:200px\"> <img class=\"enlargeImg\" width=\"200\" src=\"" + ret_info[k][1] + "\" title=\"点击查看大图\"/> <div class=\"card-body\"> <h4 class=\"card-title\">" + prompt[k] + "</h4> </div> </div> </div>";
+                    } else if (k === "flagged") {
+                        new_pipeline_html += "<div class=\"col-auto my-3 background_withhight\"><div class=\"card\" style=\"width:200px\"> <img class=\"enlargeImg\" width=\"200\" src=\"" + ret_info[k] + "\" title=\"点击查看大图\"/> <div class=\"card-body\"> <h4 class=\"card-title\">" + prompt[k] + "</h4> </div> </div> </div>";
+                    }
+                }
+
+                $("#pipeline").html(new_pipeline_html);
+                enlargeImg();
+
+                {#  {'debug': '', 'total_time': 370.9299564361572,#}
+                {## 'original': '1c9e9711-f01d-4113-b11e-e546428a759a_original.jpg',#}
+                {## 'cell': [111.13262176513672, '1c9e9711-f01d-4113-b11e-e546428a759a_cell.jpg'],#}
+                {## 'ocr': [239.74919319152832, '1c9e9711-f01d-4113-b11e-e546428a759a_ocr.jpg'],#}
+                {## 'preprocessing': [2.897500991821289, '1c9e9711-f01d-4113-b11e-e546428a759a_pre.jpg'],#}
+                {## 'flagged': '1c9e9711-f01d-4113-b11e-e546428a759a_flagged.jpg',#}
+                {## 'excel': '1c9e9711-f01d-4113-b11e-e546428a759a.xlsx'}#}
 
             },
             error: function () {
-
+                swal({
+                    title: "未知错误",
+                    text: "提交请求出错，可能是断网了？",
+                    type: "error"
+                });
             }
         });
     })
 </script>
 <script>
     var host = window.location.host;
-    $(document).ready(function() {
+    $(document).ready(function () {
         if (!window.WebSocket) {
             if (window.MozWebSocket) {
                 window.WebSocket = window.MozWebSocket;
@@ -245,10 +418,10 @@
             }
         }
         var wslog = new WebSocket('ws://' + host + '/log');
-        wslog.onopen = function(evt) {
+        wslog.onopen = function (evt) {
             $('#msg').append('<li>websocket连接成功</li>');
         }
-        wslog.onmessage = function(evt) {
+        wslog.onmessage = function (evt) {
             $('#msg').empty();
             $('#msg').prepend(evt.data);
         }
