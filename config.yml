@@ -12,7 +12,6 @@ table_line:
   traditional:
     placeholder: 'placeholder'
 ocr:
-  type: 'paddle'
   paddle:
     det_path: "./inference/ch_ppocr_server_v1.1_det_infer/"
     rec_path: "./inference/ch_ppocr_server_v1.1_rec_infer/"

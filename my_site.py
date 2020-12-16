@@ -8,6 +8,7 @@ from utils import MyLogger, RemoteLogger
 from web import WebHandler
 import os
 import yaml
+import cv2
 import time
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'bmp'}
@@ -15,6 +16,11 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'bmp'}
 
 def is_allow_extension(filename: str):
     return filename.split('.')[-1].lower() in ALLOWED_EXTENSIONS
+
+
+app = Flask(__name__, static_url_path='',
+            static_folder='./static',
+            template_folder='./templates')
 
 
 class MainView(views.View, ABC):
@@ -40,7 +46,6 @@ class MainView(views.View, ABC):
 
     def __init__(self):
         super(MainView, self).__init__()
-        self.ws_logger = RemoteLogger(debug=True)
 
     def dispatch_request(self):
         ocr_method_list = [{'value': k, 'desp': '%d: ' % idx + self._ocr_mapping[k]} for idx, k in
@@ -51,36 +56,53 @@ class MainView(views.View, ABC):
                            k in self._advance_options.keys()]
         return render_template('index.html', ocr=ocr_method_list, cell=cell_method_list, advance=advance_options)
 
+    @property
+    def advance_options(self):
+        return self._advance_options
+
 
 class UploadView(views.View, ABC):
     methods = ['POST']
+    tmp_root = './tmp'
 
     def __init__(self):
         super(UploadView, self).__init__()
+        if not os.path.exists(self.tmp_root):
+            os.mkdir(self.tmp_root)
 
     def dispatch_request(self):
-        form = dict(request.form)
-        f = request.files['local_image']
-        if not is_allow_extension(f.filename):
-            return jsonify({'status': '20001', 'desp': '文件格式暂不支持'})
-        submit_kwargs = {}
-        for k in form.keys():
-            if form[k] == '-1':
-                return jsonify({'status': '30001', 'desp': '%s 未选中有效选项！' % k})
-            elif form[k] == 'on':
-                submit_kwargs[k] = True
-            elif form[k] == 'off':
-                submit_kwargs[k] = False
-            else:
-                submit_kwargs[k] = form[k]
+        try:
+            form = dict(request.form)
+            f = request.files['local_image']
+            if not is_allow_extension(f.filename):
+                return jsonify({'status': '20001', 'desp': '文件格式暂不支持'})
+            submit_kwargs = {k: False for k in main_view.advance_options}
+            for k in form.keys():
+                if form[k] == '-1':
+                    return jsonify({'status': '30001', 'desp': '%s 未选中有效选项！' % k})
+                elif form[k] == 'on':
+                    submit_kwargs[k] = True
+                else:
+                    submit_kwargs[k] = form[k]
 
-        return jsonify()
+            # submit_kwargs: {'p_trans': True, 't_detection': False, 'ocr_det_disable': False}
+            # write img to tmp file
+            f.save(os.path.join(self.tmp_root, f.filename))
+            ori_img = cv2.imread(os.path.join(self.tmp_root, f.filename))
+            ret_details = main_view.web_handler.pipeline(ori_img, **submit_kwargs)
+
+            # handler return info: {'debug': '', 'total_time': 370.9299564361572,
+            # 'original': '1c9e9711-f01d-4113-b11e-e546428a759a_original.jpg',
+            # 'cell': [111.13262176513672, '1c9e9711-f01d-4113-b11e-e546428a759a_cell.jpg'],
+            # 'ocr': [239.74919319152832, '1c9e9711-f01d-4113-b11e-e546428a759a_ocr.jpg'],
+            # 'preprocessing': [2.897500991821289, '1c9e9711-f01d-4113-b11e-e546428a759a_pre.jpg'],
+            # 'flagged': '1c9e9711-f01d-4113-b11e-e546428a759a_flagged.jpg',
+            # 'excel': '1c9e9711-f01d-4113-b11e-e546428a759a.xlsx'}
+            return jsonify({'status': '10000', 'details': ret_details})
+        except Exception as e:  # for friendly prompts
+            return jsonify({'status': '40001', 'desp': '未预见的错误: %s' % str(e)})
 
 
-global app
-app = Flask(__name__, static_url_path='',
-            static_folder='./static',
-            template_folder='./templates')
 main_view = MainView()
 upload_view = UploadView()
 app.add_url_rule('/', view_func=main_view.as_view('index'))
@@ -90,7 +112,7 @@ app.add_url_rule('/upload', view_func=upload_view.as_view('upload'))
 @app.route('/log')
 def log():
     user_socket = request.environ.get("wsgi.websocket")
-    logger = main_view.ws_logger
+    logger = RemoteLogger
     logger.info("Remote Log Websocket established: " + str(user_socket) + request.remote_addr)
     while True:
         time.sleep(1)
@@ -101,4 +123,4 @@ def log():
 if __name__ == '__main__':
     # http_serv = WSGIServer((main_view.config_dict['web']['host'], main_view.config_dict['web']['port']), app, handler_class=WebSocketHandler)
     # http_serv.serve_forever()
-    app.run(debug=True, threaded=True, **main_view.config_dict['web'])
+    app.run(debug=False, **main_view.config_dict['web'])

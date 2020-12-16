@@ -534,15 +534,28 @@ class MyLogger(logging.Logger):
         self.propagate = False
 
 
-@Singleton
-class RemoteLogger(object):
-    def __init__(self, line_limit=100, debug=False):
-        self.line_limit = line_limit
-        self.debug = debug
-        self.lines = []
+# Using a singleton decorator seems less elegant
+# @Singleton
+# class RemoteLogger(object):
+#     def __init__(self, line_limit=100, debug=False):
+#         self.line_limit = line_limit
+#         self.debug = debug
+#         self.lines = []
+#
+#     def info(self, line):
+#         self.lines.append('<li>' + line + '</li>')
+#         if self.debug:
+#             print(line)
+#         self.lines = self.lines[-self.line_limit:]
 
-    def info(self, line):
-        self.lines.append('<li>' + line + '</li>')
-        if self.debug:
+class RemoteLogger(object):
+    lines = []
+    debug = True
+    line_limit = 100
+
+    @classmethod
+    def info(cls, line):
+        cls.lines.append('<li>' + line + '</li>')
+        if cls.debug:
             print(line)
-        self.lines = self.lines[-self.line_limit:]
+        cls.lines = cls.lines[-cls.line_limit:]

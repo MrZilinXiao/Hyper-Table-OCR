@@ -5,7 +5,7 @@ import itertools
 from bisect import bisect_left
 import cv2
 import copy
-from utils import draw_boxes, Timer
+from utils import draw_boxes, Timer, RemoteLogger
 
 
 # class Table:
@@ -164,22 +164,21 @@ class Table(object):
             return left_idx - 1
         return left_idx - 1 if num - _list[left_idx - 1] <= _list[left_idx] - num else left_idx
 
-    def match_ocr(self, ocr: dict, thresh=0.95):
+    def match_ocr(self, ocr: dict, img, thresh=0.95):
+        tmp = img.copy()
         # if self.verbose:
         #     xmin, ymin, xmax, ymax = self.coord
         #     empty = np.zeros([ymax - ymin, xmax - xmin, 3], dtype=np.uint8)
         #     cv2.namedWindow('Show OCR Match')
         # from dict to OCRBlock objects
         self.ocr_blocks: List[OCRBlock] = self._load_ocr_dict(ocr)
+        # self.ocr_blocks_copy = copy.deepcopy(self.ocr_blocks)  # a deep copy of ocr block, using for draw match img
         for table_cell in self.table_cells[::-1]:  # traverse in reserved order
+            # tmp = draw_boxes(tmp, [table_cell.coord])
             for ocr_block in self.ocr_blocks[::-1]:
                 # if self.verbose:
-                #     tmp = draw_boxes(empty, [table_cell.coord])
-                #     tmp = draw_boxes(tmp, [ocr_block.coord])
-                #     cv2.imshow('Show OCR Match', tmp)
-                #     cv2.waitKey(0)
-
                 if table_cell.shape.intersection(ocr_block.shape).area / ocr_block.shape.area >= thresh:
+                    tmp = draw_boxes(tmp, [ocr_block.coord])
                     # matched!
                     table_cell.ocr_content.append(ocr_block.ocr_content)
                     table_cell.matched = True
@@ -187,10 +186,9 @@ class Table(object):
                     break
         # ocr blocks left behind will be the title
         self.title = ''.join([ocr_block.ocr_content for ocr_block in self.ocr_blocks])
+        return tmp
 
     def build_structure(self, delta_y=10, delta_x=10, overlap_thr=0.3):
-        """
-        """
         # 0.0 remove cells who overlap with others too much (abandon)
         # with Timer('remove (in Match OCR with cells'):
         #     for j in range(len(self.table_cells) - 1, -1, -1):
@@ -207,7 +205,7 @@ class Table(object):
 
         # 0.1 assign cells in rows by different y (average y of two points from upper edge)
         if len(self.table_cells) == 0:
-            raise ValueError("No available cells! ")
+            raise ValueError("没有找到任何表格框！")
         row_y = self.table_cells[0].upper_y
         row = []
         for i in range(len(self.table_cells)):

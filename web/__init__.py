@@ -1,21 +1,20 @@
 import tensorflow as tf
 
-# from boardered.table_net import table_net
 from PIL import Image
 
 for device in tf.config.experimental.list_physical_devices("GPU"):
     tf.config.experimental.set_memory_growth(device, True)
+
 import xlsxwriter
 
 from utils import Singleton, Timer, EmptyTimer, draw_lines, minAreaRectbox, draw_boxes
 from typing import List, Union
 from skimage import measure
-# from TableUNet import table_net
 from boardered.table_net import table_line, table_net
 from table import Table, TableCell
 from table.transform import preprocess
 from ocr import PaddleHandler
-from ocr.tools.infer.utility import draw_ocr_box_txt
+from ocr.tools.infer.utility import draw_ocr_box_txt, draw_ocr
 import uuid
 import os
 
@@ -31,8 +30,10 @@ class WebHandler:
     _DETECTION_MODEL = None
     _LINE_MODEL = None
     _OCR_MODEL = None
+    _OCR_MODEL_LITE = None
     _OCR_FACTORY = {
-        'paddle': PaddleHandler
+        'paddle': PaddleHandler,
+        'paddle_lite': PaddleHandler
     }
 
     def __init__(self, config: Union[str, dict] = './config.yml', debug=True, preload=True, device='cuda:0',
@@ -61,9 +62,17 @@ class WebHandler:
                 self._LINE_MODEL = table_net((*self.config_dict['table_line']['unet']['input_shape'], 3), num_classes=2)
                 self._LINE_MODEL.load_weights(self.config_dict['table_line']['unet']['model_path'])
         if self._OCR_MODEL is None:
-            det_model_dir = self.config_dict['ocr'][self.config_dict['ocr']['type']]['det_path']
-            rec_model_dir = self.config_dict['ocr'][self.config_dict['ocr']['type']]['rec_path']
-            self._OCR_MODEL = self._OCR_FACTORY[self.config_dict['ocr']['type']](det_model_dir, rec_model_dir)
+            det_model_dir = self.config_dict['ocr']['paddle']['det_path']
+            rec_model_dir = self.config_dict['ocr']['paddle']['rec_path']
+            self._OCR_MODEL = self._OCR_FACTORY['paddle'](det_model_dir, rec_model_dir)
+        if self._OCR_MODEL_LITE is None:
+            det_model_dir = self.config_dict['ocr']['paddle_lite']['det_path']
+            rec_model_dir = self.config_dict['ocr']['paddle_lite']['rec_path']
+            self._OCR_MODEL_LITE = self._OCR_FACTORY['paddle_lite'](det_model_dir, rec_model_dir)
+        self.ocr_options = {
+            'paddle': self._OCR_MODEL,
+            'paddle_lite': self._OCR_MODEL_LITE
+        }
         if preload:
             with self.timer('Preload LINE MODEL'):
                 inputBlob = np.random.randn(*self.config_dict['table_line']['unet']['input_shape'], 3)
@@ -87,6 +96,7 @@ class WebHandler:
         p_trans = kwargs['p_trans']
         t_detection = kwargs['t_detection']
         ocr_det_disable = kwargs['ocr_det_disable']
+        ocr_type = kwargs['ocr']
         # async_cell_ocr = kwargs['async_cell_ocr']
         ret_stages = {
             'debug': ''
@@ -119,11 +129,11 @@ class WebHandler:
                     dt_boxes = cells[0].reshape((-1, 4, 2)).astype(np.int).astype(np.float32)
                 else:
                     ret_stages['debug'] += 'ocr_det_enable_since_more_than_one_table_detected'
-            ocr = self._get_ocr(preprocessed_img, dt_boxes=dt_boxes)  # only
+            ocr = self._get_ocr(preprocessed_img, _type=ocr_type, dt_boxes=dt_boxes)
 
         # 4. match OCR content with cells
         with self.timer("Match OCR with cells") as t_match:
-            self._match(cells, ocr, tables)
+            match_img = self._match(cells, ocr, tables, preprocessed_img)
 
         # 5. save all middle results, ready to display on webpage
 
@@ -140,11 +150,12 @@ class WebHandler:
             total_time=t_preprocess.msecs + t_det.msecs + t_cell.msecs + t_ocr.msecs + t_match.msecs,
             original=req_id + '_original.jpg',
             cell=[t_cell.msecs, req_id + '_cell.jpg'],
-            ocr=[t_ocr.msecs, req_id + '_ocr.jpg']
+            ocr=[t_ocr.msecs, req_id + '_ocr.jpg'],
+            match=[t_match.msecs, req_id + '_match.jpg']
         )
 
         # visualize OCR result
-        image = Image.fromarray(cv2.cvtColor(preprocessed_img, cv2.COLOR_BGR2RGB))
+        image = Image.fromarray(cv2.cvtColor(match_img, cv2.COLOR_BGR2RGB))
 
         # boxes = dt_boxes  # [-1, 4, 2]
         boxes, txts, scores = [], [], []
@@ -155,15 +166,23 @@ class WebHandler:
             boxes.append(coord)
         boxes = np.array(boxes)
 
-        draw_img = draw_ocr_box_txt(
+        img_left, img_right = draw_ocr_box_txt(
             image,
             boxes,
             txts,
             scores,
             drop_score=0.5,
             font_path='./simfang.ttf')
+        # left is
+        # h, w = img_left.
+        # img_show = Image.new('RGB', (w * 2, h), (255, 255, 255))
+        # img_show.paste(img_left, (0, 0, w, h))
+        # img_show.paste(img_right, (w, 0, w * 2, h))
         cv2.imwrite(os.path.join(self.static_prefix, req_id + '_ocr.jpg'),
-                    draw_img[:, :, ::-1])
+                    img_right[:, :, ::-1])
+
+        cv2.imwrite(os.path.join(self.static_prefix, req_id + '_match.jpg'),
+                    img_left[:, :, ::-1])
 
         cv2.imwrite(os.path.join(self.static_prefix, req_id + '_original.jpg'), ori_img)
         if p_trans:
@@ -221,8 +240,8 @@ class WebHandler:
         return np.hstack((x1, y1, x2, y2))
         # return np.array([[0, 0, *ori_img.shape[1::-1]]])
 
-    def _get_ocr(self, ori_img, dt_boxes=None) -> dict:
-        return self._OCR_MODEL.get_result(ori_img, dt_boxes=dt_boxes)
+    def _get_ocr(self, ori_img, _type='paddle', dt_boxes=None) -> dict:
+        return self.ocr_options[_type].get_result(ori_img, dt_boxes=dt_boxes)
 
     def _get_cells(self, ori_img, table_coords) -> List[np.ndarray]:  # in tensorflow
         cells = []
@@ -230,10 +249,6 @@ class WebHandler:
         for coord in table_coords:  # for each boarded table
             xmin, ymin, xmax, ymax = [int(k) for k in coord]  # used for cropping & shifting
             table_img = ori_img[ymin:ymax, xmin:xmax]  # cropped img
-            # row_boxes, col_boxes = table_line(self._LINE_MODEL, table_img[..., ::-1],  # BGR->RGB
-            #                                       size=self.unet_shape,
-            #                                       hprob=self.hprob,
-            #                                       vprob=self.vprob)
             with Timer("lines extraction(in cells extraction)"):
                 row_boxes, col_boxes = table_line(self._LINE_MODEL, table_img[..., ::-1],
                                                   size=self.unet_shape,
@@ -246,20 +261,24 @@ class WebHandler:
             cell_boxes = minAreaRectbox(regions, flag=False, W=tmp.shape[1], H=tmp.shape[0], filtersmall=True,
                                         adjustBox=True)
             cell_boxes = np.array(cell_boxes)
+            if len(cell_boxes.shape) == 1:
+                # TODO: Add Prompt
+                continue
             # shifting to fit original image
             cell_boxes[:, [0, 2, 4, 6]] += xmin  # cell_boxes: [N, 8]  N: number of boxes of each table
             cell_boxes[:, [1, 3, 5, 7]] += ymin
             cells.append(cell_boxes)
         return cells
 
-    def _match(self, cells, ocr: dict, tables):
+    def _match(self, cells, ocr: dict, tables, img):
         assert len(cells) == len(tables), "table & cell not match!"
         self.tables = []
         for i in range(len(tables)):
             my_table = Table(coord=tables[i], cells=cells[i], verbose=False)
-            my_table.match_ocr(ocr)
+            img = my_table.match_ocr(ocr, img)
             my_table.build_structure()
             self.tables.append(my_table)
+        return img
 
     def to_excel(self, filename='./debug.xlsx', need_title=False):
         workbook = xlsxwriter.Workbook(filename)

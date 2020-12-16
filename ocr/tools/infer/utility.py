@@ -266,10 +266,10 @@ def draw_ocr_box_txt(image,
             draw_right.text(
                 [box[0][0], box[0][1]], txt, fill=(0, 0, 0), font=font)
     img_left = Image.blend(image, img_left, 0.5)
-    img_show = Image.new('RGB', (w * 2, h), (255, 255, 255))
-    img_show.paste(img_left, (0, 0, w, h))
-    img_show.paste(img_right, (w, 0, w * 2, h))
-    return np.array(img_show)
+    # img_show = Image.new('RGB', (w * 2, h), (255, 255, 255))
+    # img_show.paste(img_left, (0, 0, w, h))
+    # img_show.paste(img_right, (w, 0, w * 2, h))
+    return np.array(img_left), np.array(img_right)
 
 
 def str_count(s):
