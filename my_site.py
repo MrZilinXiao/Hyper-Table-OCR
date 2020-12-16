@@ -1,9 +1,11 @@
 from abc import ABC
 from flask import Flask, request, jsonify, views, render_template
-import gevent
+# import gevent
+import gevent.monkey
+gevent.monkey.patch_all()
 from geventwebsocket.handler import WebSocketHandler
 from gevent.pywsgi import WSGIServer
-# from geventwebsocket.websocket import WebSocket
+from geventwebsocket.websocket import WebSocket
 from utils import MyLogger, RemoteLogger
 from web import WebHandler
 import os
@@ -121,6 +123,6 @@ def log():
 
 
 if __name__ == '__main__':
-    # http_serv = WSGIServer((main_view.config_dict['web']['host'], main_view.config_dict['web']['port']), app, handler_class=WebSocketHandler)
-    # http_serv.serve_forever()
-    app.run(debug=False, **main_view.config_dict['web'])
+    http_serv = WSGIServer((main_view.config_dict['web']['host'], main_view.config_dict['web']['port']), app, handler_class=WebSocketHandler)
+    http_serv.serve_forever()
+    # app.run(debug=False, **main_view.config_dict['web'])

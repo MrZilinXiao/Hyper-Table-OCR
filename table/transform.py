@@ -59,12 +59,13 @@ def preprocess(ori_img):
         return warped, tmp
     else:
         RemoteLogger.info("没有可见清晰边缘，透视变换失败")
-        return ori_img, ori_img
+        raise RuntimeError("没有可见清晰边缘，透视变换失败")
+        # return ori_img, ori_img
 
 
 if __name__ == '__main__':
     # resized_height = 500
-    ori_img = cv2.imread('./test_720p.JPG')
+    ori_img = cv2.imread('./test_1.jpg')
     warped, flagged = preprocess(ori_img)
     cv2.imwrite('warped.jpg', warped)
     cv2.imwrite('flagged.jpg', flagged)

@@ -7,7 +7,7 @@ for device in tf.config.experimental.list_physical_devices("GPU"):
 
 import xlsxwriter
 
-from utils import Singleton, Timer, EmptyTimer, draw_lines, minAreaRectbox, draw_boxes
+from utils import Singleton, Timer, EmptyTimer, draw_lines, minAreaRectbox, draw_boxes, RemoteLogger
 from typing import List, Union
 from skimage import measure
 from boardered.table_net import table_line, table_net
@@ -263,6 +263,7 @@ class WebHandler:
             cell_boxes = np.array(cell_boxes)
             if len(cell_boxes.shape) == 1:
                 # TODO: Add Prompt
+                RemoteLogger.info("在此表中未构建出cell！")
                 continue
             # shifting to fit original image
             cell_boxes[:, [0, 2, 4, 6]] += xmin  # cell_boxes: [N, 8]  N: number of boxes of each table
@@ -271,7 +272,8 @@ class WebHandler:
         return cells
 
     def _match(self, cells, ocr: dict, tables, img):
-        assert len(cells) == len(tables), "table & cell not match!"
+        if len(cells) != len(tables):
+            raise RuntimeError("对表格未检出Cell！")
         self.tables = []
         for i in range(len(tables)):
             my_table = Table(coord=tables[i], cells=cells[i], verbose=False)
