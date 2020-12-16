@@ -165,19 +165,19 @@ class Table(object):
         return left_idx - 1 if num - _list[left_idx - 1] <= _list[left_idx] - num else left_idx
 
     def match_ocr(self, ocr: dict, thresh=0.95):
-        if self.verbose:
-            xmin, ymin, xmax, ymax = self.coord
-            empty = np.zeros([ymax - ymin, xmax - xmin, 3], dtype=np.uint8)
-            cv2.namedWindow('Show OCR Match')
+        # if self.verbose:
+        #     xmin, ymin, xmax, ymax = self.coord
+        #     empty = np.zeros([ymax - ymin, xmax - xmin, 3], dtype=np.uint8)
+        #     cv2.namedWindow('Show OCR Match')
         # from dict to OCRBlock objects
         self.ocr_blocks: List[OCRBlock] = self._load_ocr_dict(ocr)
         for table_cell in self.table_cells[::-1]:  # traverse in reserved order
             for ocr_block in self.ocr_blocks[::-1]:
-                if self.verbose:
-                    tmp = draw_boxes(empty, [table_cell.coord])
-                    tmp = draw_boxes(tmp, [ocr_block.coord])
-                    cv2.imshow('Show OCR Match', tmp)
-                    cv2.waitKey(0)
+                # if self.verbose:
+                #     tmp = draw_boxes(empty, [table_cell.coord])
+                #     tmp = draw_boxes(tmp, [ocr_block.coord])
+                #     cv2.imshow('Show OCR Match', tmp)
+                #     cv2.waitKey(0)
 
                 if table_cell.shape.intersection(ocr_block.shape).area / ocr_block.shape.area >= thresh:
                     # matched!
@@ -185,6 +185,8 @@ class Table(object):
                     table_cell.matched = True
                     self.ocr_blocks.remove(ocr_block)
                     break
+        # ocr blocks left behind will be the title
+        self.title = ''.join([ocr_block.ocr_content for ocr_block in self.ocr_blocks])
 
     def build_structure(self, delta_y=10, delta_x=10, overlap_thr=0.3):
         """
@@ -272,6 +274,7 @@ class Table(object):
                 print("%.4f" % (_sum / cell.shape.area))
                 if _sum / cell.shape.area > overlap_thr:
                     self.rows[ii].pop(kk)
+                    print('pop one cell!')
 
 
 if __name__ == '__main__':

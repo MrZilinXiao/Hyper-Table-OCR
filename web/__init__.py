@@ -1,18 +1,21 @@
 import tensorflow as tf
 
 # from boardered.table_net import table_net
+from PIL import Image
+
 for device in tf.config.experimental.list_physical_devices("GPU"):
     tf.config.experimental.set_memory_growth(device, True)
 import xlsxwriter
 
 from utils import Singleton, Timer, EmptyTimer, draw_lines, minAreaRectbox, draw_boxes
-from typing import List
+from typing import List, Union
 from skimage import measure
 # from TableUNet import table_net
 from boardered.table_net import table_line, table_net
 from table import Table, TableCell
 from table.transform import preprocess
 from ocr import PaddleHandler
+from ocr.tools.infer.utility import draw_ocr_box_txt
 import uuid
 import os
 
@@ -32,21 +35,20 @@ class WebHandler:
         'paddle': PaddleHandler
     }
 
-    def __init__(self, config_path='./config.yml', debug=True, preload=True, device='cuda:0', static_folder='static/'):
+    def __init__(self, config: Union[str, dict] = './config.yml', debug=True, preload=True, device='cuda:0',
+                 static_folder='static/'):
         self.device = device
         if not tf.test.is_gpu_available():
             self.device = 'cpu'
-        else:
-            # self._configure_gpu()
-            pass
         self.static_prefix = static_folder
         if not os.path.exists(static_folder):
             os.mkdir(static_folder)
         self.debug = debug
         self.timer = Timer if self.debug else EmptyTimer
-        self.config_dict: dict = yaml.load(open(config_path, 'r'), Loader=yaml.Loader)
-        self.hprob, self.vprob = self.config_dict['table_line']['hprob'], self.config_dict['table_line']['vprob']
-        self.unet_shape = self.config_dict['table_line']['input_shape']
+        self.config_dict: dict = yaml.load(open(config, 'r'), Loader=yaml.Loader) if isinstance(config, str) else config
+        self.hprob, self.vprob = self.config_dict['table_line']['unet']['hprob'], \
+                                 self.config_dict['table_line']['unet']['vprob']
+        self.unet_shape = self.config_dict['table_line']['unet']['input_shape']
         # {'table_line': {'model_path': './table-line.h5', 'input_shape': [512, 512]}, 'ocr': {'model_path': ''}, 'web': {'host': '0.0.0.0', 'port': 23333}}
         self.det_config = self.config_dict['table_detection']['config_path']
         self.det_ckpt = self.config_dict['table_detection']['model_path']
@@ -56,15 +58,15 @@ class WebHandler:
                 self._DETECTION_MODEL = init_detector(self.det_config, self.det_ckpt, device='cuda:0')
         if self._LINE_MODEL is None:
             with self.timer("Load line segmentation model"):
-                self._LINE_MODEL = table_net((*self.config_dict['table_line']['input_shape'], 3), num_classes=2)
-                self._LINE_MODEL.load_weights(self.config_dict['table_line']['model_path'])
+                self._LINE_MODEL = table_net((*self.config_dict['table_line']['unet']['input_shape'], 3), num_classes=2)
+                self._LINE_MODEL.load_weights(self.config_dict['table_line']['unet']['model_path'])
         if self._OCR_MODEL is None:
             det_model_dir = self.config_dict['ocr'][self.config_dict['ocr']['type']]['det_path']
             rec_model_dir = self.config_dict['ocr'][self.config_dict['ocr']['type']]['rec_path']
             self._OCR_MODEL = self._OCR_FACTORY[self.config_dict['ocr']['type']](det_model_dir, rec_model_dir)
         if preload:
             with self.timer('Preload LINE MODEL'):
-                inputBlob = np.random.randn(*self.config_dict['table_line']['input_shape'], 3)
+                inputBlob = np.random.randn(*self.config_dict['table_line']['unet']['input_shape'], 3)
                 _ = self._LINE_MODEL.predict(np.array([np.array(inputBlob) / 255.0]))
 
     # noinspection PyUnresolvedReferences
@@ -85,7 +87,7 @@ class WebHandler:
         p_trans = kwargs['p_trans']
         t_detection = kwargs['t_detection']
         ocr_det_disable = kwargs['ocr_det_disable']
-        async_cell_ocr = kwargs['async_cell_ocr']
+        # async_cell_ocr = kwargs['async_cell_ocr']
         ret_stages = {
             'debug': ''
         }
@@ -106,8 +108,9 @@ class WebHandler:
             cells = self._get_cells(preprocessed_img, tables)  # cells coords not changed
 
         # 3. get content from OCR (can be async between cell extraction if performance not fit)
-        if async_cell_ocr and ocr_det_disable:
-            raise ValueError("Async processing & ocr_det_disable can't be turned on in the same time!")
+        # TODO: consider using dual GPUs to perform async operations
+        # if async_cell_ocr and ocr_det_disable:
+        #     raise ValueError("Async processing & ocr_det_disable can't be turned on in the same time!")
         with self.timer("OCR pipeline") as t_ocr:
             dt_boxes = None
             if ocr_det_disable:
@@ -126,33 +129,59 @@ class WebHandler:
 
         req_id = str(uuid.uuid4())
         tmp_cell = preprocessed_img.copy()
-        # for i in range(len(cells)):  # TODO: draw self.tables
+        # for i in range(len(cells)):  # Done: draw self.tables
         #     tmp_cell = draw_boxes(tmp_cell, cells[i].tolist())
         for j in range(len(self.tables)):
-            for cell in self.tables[j].table_cells:
-                tmp_cell = draw_boxes(tmp_cell, [cell.coord])
+            for row in self.tables[j].rows:
+                for cell in row:
+                    tmp_cell = draw_boxes(tmp_cell, [cell.coord])
 
         ret_stages.update(
             total_time=t_preprocess.msecs + t_det.msecs + t_cell.msecs + t_ocr.msecs + t_match.msecs,
-            original=os.path.join(self.static_prefix, req_id + '_original.jpg'),
-            cell=[t_cell.msecs, os.path.join(self.static_prefix, req_id + '_cell.jpg')]
+            original=req_id + '_original.jpg',
+            cell=[t_cell.msecs, req_id + '_cell.jpg'],
+            ocr=[t_ocr.msecs, req_id + '_ocr.jpg']
         )
+
+        # visualize OCR result
+        image = Image.fromarray(cv2.cvtColor(preprocessed_img, cv2.COLOR_BGR2RGB))
+
+        # boxes = dt_boxes  # [-1, 4, 2]
+        boxes, txts, scores = [], [], []
+        ocr['sentences']: List[List[str, List[List[int, int]], float]]
+        for txt, coord, score in ocr['sentences']:
+            txts.append(txt)
+            scores.append(score)
+            boxes.append(coord)
+        boxes = np.array(boxes)
+
+        draw_img = draw_ocr_box_txt(
+            image,
+            boxes,
+            txts,
+            scores,
+            drop_score=0.5,
+            font_path='./simfang.ttf')
+        cv2.imwrite(os.path.join(self.static_prefix, req_id + '_ocr.jpg'),
+                    draw_img[:, :, ::-1])
 
         cv2.imwrite(os.path.join(self.static_prefix, req_id + '_original.jpg'), ori_img)
         if p_trans:
             cv2.imwrite(os.path.join(self.static_prefix, req_id + '_pre.jpg'), preprocessed_img)
             cv2.imwrite(os.path.join(self.static_prefix, req_id + '_flagged.jpg'), flagged)
             ret_stages.update(
-                preprocessing=[t_preprocess.msecs, os.path.join(self.static_prefix, req_id + '_pre.jpg')],
-                flagged=os.path.join(self.static_prefix, req_id + '_flagged.jpg')
+                preprocessing=[t_preprocess.msecs, req_id + '_pre.jpg'],
+                flagged=req_id + '_flagged.jpg'
             )
         if t_detection:
             table_img = draw_boxes(preprocessed_img, tables)
             cv2.imwrite(os.path.join(self.static_prefix, req_id + '_table.jpg'), table_img)
             ret_stages.update(
-                det=[t_det.msecs, os.path.join(self.static_prefix, req_id + '_pre.jpg')]
+                det=[t_det.msecs, os.path.join(self.static_prefix, req_id + '_table.jpg')]
             )
         cv2.imwrite(os.path.join(self.static_prefix, req_id + '_cell.jpg'), tmp_cell)
+        self.to_excel(filename=os.path.join(self.static_prefix, req_id + '.xlsx'), need_title=not t_detection)
+        ret_stages.update(excel=req_id + '.xlsx')
 
         return ret_stages
 
@@ -192,7 +221,7 @@ class WebHandler:
         return np.hstack((x1, y1, x2, y2))
         # return np.array([[0, 0, *ori_img.shape[1::-1]]])
 
-    def _get_ocr(self, ori_img, dt_boxes=None) -> dict:  # in paddle
+    def _get_ocr(self, ori_img, dt_boxes=None) -> dict:
         return self._OCR_MODEL.get_result(ori_img, dt_boxes=dt_boxes)
 
     def _get_cells(self, ori_img, table_coords) -> List[np.ndarray]:  # in tensorflow
@@ -232,10 +261,10 @@ class WebHandler:
             my_table.build_structure()
             self.tables.append(my_table)
 
-    def to_excel(self, filename='./debug.xlsx'):
+    def to_excel(self, filename='./debug.xlsx', need_title=False):
         workbook = xlsxwriter.Workbook(filename)
         for (i, table) in enumerate(self.tables):
-            name = table.title if table.title != '' else '识别表格' + str(i)
+            name = table.title if need_title else '识别表格' + str(i)
             worksheet = workbook.add_worksheet(name=name)
             for (row_num, row) in enumerate(table.rows):
                 row: List[TableCell]
@@ -255,6 +284,6 @@ if __name__ == '__main__':
     print(handler.pipeline(ori_img,
                            p_trans=True,
                            t_detection=False,
-                           ocr_det_disable=False,
-                           async_cell_ocr=False))
-    handler.to_excel()
+                           ocr_det_disable=False
+                           ))
+    # handler.to_excel()

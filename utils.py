@@ -1,3 +1,7 @@
+import datetime
+import logging
+import sys
+
 import cv2 as cv
 import os
 import time
@@ -115,7 +119,6 @@ class Timer(object):
         self.msecs = self.secs * 1000
         if self.verbose:
             print('%s consumes %.2f ms' % (self.reason, self.msecs))
-
 
 
 def _order_points(pts):
@@ -514,3 +517,32 @@ def Singleton(cls):
         return _instance[cls]
 
     return _singleton
+
+
+class MyLogger(logging.Logger):
+    def __init__(self, level='DEBUG', file='web_remote.log'):
+        super().__init__(file)
+        self.setLevel(level)
+        ft = logging.Formatter('%(asctime)s %(levelname)-8s: %(message)s')
+        if file:
+            file_handler = logging.FileHandler(file)
+            file_handler.setFormatter(ft)
+            self.addHandler(file_handler)
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.formatter = ft
+        self.addHandler(console_handler)
+        self.propagate = False
+
+
+@Singleton
+class RemoteLogger(object):
+    def __init__(self, line_limit=100, debug=False):
+        self.line_limit = line_limit
+        self.debug = debug
+        self.lines = []
+
+    def info(self, line):
+        self.lines.append('<li>' + line + '</li>')
+        if self.debug:
+            print(line)
+        self.lines = self.lines[-self.line_limit:]
