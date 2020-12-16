@@ -3,13 +3,20 @@ table_detection:
   config_path: './cascade_mask_rcnn_hrnetv2p_w32_20e.py'
   score_thr: 0.85
 table_line:
-  model_path: './table-line.h5'
-  input_shape: [512, 512]
-  hprob: 0.5
-  vprob: 0.5
+  type: 'unet'
+  unet:
+    model_path: './table-line.h5'
+    input_shape: [512, 512]
+    hprob: 0.5
+    vprob: 0.5
+  traditional:
+    placeholder: 'placeholder'
 ocr:
   type: 'paddle'
   paddle:
+    det_path: "./inference/ch_ppocr_server_v1.1_det_infer/"
+    rec_path: "./inference/ch_ppocr_server_v1.1_rec_infer/"
+  paddle_lite:
     det_path: "./inference/ch_ppocr_server_v1.1_det_infer/"
     rec_path: "./inference/ch_ppocr_mobile_v1.1_rec_infer/"
   chineseocr:
@@ -17,4 +24,4 @@ ocr:
     rec_path: ""
 web:
   host: '0.0.0.0'
-  port: 23333
+  port: 5000

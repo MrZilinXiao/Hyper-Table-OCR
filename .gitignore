@@ -352,3 +352,4 @@ tools/Bochum_all.yml
 boardered/extractor.py
 debug.xlsx
 dev_tmp.ipynb
+*.h5

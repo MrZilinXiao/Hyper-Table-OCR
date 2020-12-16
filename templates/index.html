@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="css/bootstrap.min.css" crossorigin="anonymous">
+
+    <title>Hyper-Table-Recognition</title>
+    <style>
+        .backgroundcolor {
+
+            background-color: rgba(86, 61, 124, .15);
+            border: 1px solid rgba(86, 61, 124, .2);
+        }
+
+        .themed-container {
+            padding: 15px;
+            margin-bottom: 30px;
+            background-color: rgba(0, 123, 255, .15);
+            border: 1px solid rgba(0, 123, 255, .2);
+        }
+
+        .middle {
+            float: none;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        .container {
+
+            margin: auto;
+            padding-right: 0px;
+            padding-left: 0px;
+
+        }
+
+        .background_withhight {
+            height: 300px;
+            background-color: rgba(86, 61, 124, .15);
+            border: 1px solid rgba(86, 61, 124, .2);
+        }
+
+        .upload-url {
+            border-radius: 2px;
+            border: solid 1px rgb(202, 202, 202);
+            height: 24px;
+            width: 460px;
+            padding-left: 3px;
+        }
+
+        .upload-btn {
+            border: 0px;
+            border-radius: 3px;
+            background-color: black;
+            padding: 6px;
+            margin-left: 3px;
+            color: white;
+            cursor: pointer
+        }
+
+        .upload-file {
+            position: absolute;
+            top: 0px;
+            left: 0px;
+            width: 460px;
+            cursor: pointer;
+            opacity: 0;
+            filter: alpha(opacity=0);
+        }
+
+        #msg {
+            height: 400px;
+            overflow: auto;
+            border: 2px solid #000000;
+            background-color: #000000;
+            color: #ffffff;
+        }
+    </style>
+</head>
+
+<body>
+<div class="container-fluid ">
+    <!-- 第一栏 -->
+    <div class="row ">
+        <div class="col-12">
+            <form id="local_image_form" enctype="multipart/form-data" method="post">
+                <div class="form-row align-items-center">
+                    <div class="col-6">
+                        <div class="col-auto my-1">
+                            <label class="sr-only" for="inlineFormInput">URLName</label>
+                            <!--                                <input type="text" class="form-control mb-2" id="inlineFormInput" placeholder="URL...">-->
+                            <!--                                <input class="form-control mb-2" type="text" id="inlineFormInput" placeholder="输入在线图片URL" />-->
+                            <input id="inlineFormInput" name="local_image" class="form-control mb-2"
+                                   type="file"/>
+                            {#                            <input id="local_image_path" class="form-control mb-2 upload-url" type="text"#}
+                            {#                                   placeholder="点击浏览本地文件"/>#}
+
+                        </div>
+                    </div>
+                    <div class="col-2">
+                        <div class="col-auto my-1">
+                            <button class="btn btn-primary" id="local_image_submit" type="button">Submit</button>
+                        </div>
+                    </div>
+                    <div class="col-2">
+                        <div class="col-auto my-2">
+                            <label class="mr-sm-2 sr-only" for="inlineFormCustomSelect1">OCR模块</label>
+                            <select class="custom-select mr-sm-2" id="inlineFormCustomSelect1" form="local_image_form"
+                                    name="ocr">
+                                <option value="-1">请选择OCR模块</option>
+                                {% for option in ocr %}
+                                    <option value="{{ option.value }}">{{ option.desp }}</option>
+                                {% endfor %}
+                            </select>
+                            <label class="mr-sm-2 sr-only" for="inlineFormCustomSelect2">表格框检测模块</label>
+                            <select class="custom-select mr-sm-2" id="inlineFormCustomSelect2" form="local_image_form"
+                                    name="cell">
+                                <option value="-1">请选择表格框检测模块</option>
+                                {% for option in cell %}
+                                    <option value="{{ option.value }}">{{ option.desp }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-2">
+                        <div class="col-auto my-1">
+                            {% for option in advance %}
+                                <div class="custom-control custom-checkbox mr-sm-2">
+                                    <input type="checkbox" class="custom-control-input" id="{{ option.value }}"
+                                           name="{{ option.value }}"{% if option.enable %} checked{% endif %}>
+                                    <label class="custom-control-label"
+                                           for="{{ option.value }}">{{ option.desp }}</label>
+                                </div>
+                            {% endfor %}
+                            {#                            <div class="custom-control custom-checkbox mr-sm-2">#}
+                            {#                                <input type="checkbox" class="custom-control-input" id="customControlAutosizing2"#}
+                            {#                                       name="fuxuan2">#}
+                            {#                                <label class="custom-control-label" for="customControlAutosizing2">Remember my#}
+                            {#                                    preference</label>#}
+                            {#                            </div>#}
+                        </div>
+
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    <!-- 间隔栏 -->
+    <div class="row mb-3"></div>
+    <!-- 第二栏 -->
+    <div class="row mb-3">
+
+        <div class="col-6 ">
+            <div class="col-auto my-1 background_withhight">
+                <img src="/a1.jpg" class="img-responsive img-rounded" alt="Responsive image" style="height: 300px">
+            </div>
+
+        </div>
+
+        <div class="col-6 ">
+            <div class="col-auto my-1 background_withhight">
+                <img src="/a1.jpg" class="img-responsive img-rounded" alt="Responsive image" style="height: 300px">
+            </div>
+        </div>
+
+
+    </div>
+    <!-- 实体间隔栏 -->
+
+    <div class="row">
+        <div class=" col-12 backgroundcolor">需要的话加padding或者再套一层col-auto my-1</div>
+    </div>
+
+    <!-- 间隔栏 -->
+    <div class="row mb-3"></div>
+    <!-- 第三栏 -->
+    <div class="row">
+        <div class=" col-6 ">
+            <div class="col-auto my-1 background_withhight">
+                <img src="/a1.jpg" class="img-responsive img-rounded" alt="Responsive image" style="height: 300px">
+            </div>
+        </div>
+        <div class=" col-6 ">
+            <div class="col-auto my-1 background_withhight">
+                <img src="/a1.jpg" class="img-responsive img-rounded" alt="Responsive image" style="height: 300px">
+            </div>
+        </div>
+    </div>
+    <!-- 间隔栏 -->
+    <div class="row mb-3"></div>
+    <div class="row">
+        <div class="col-12">
+            <div id="msg"></div>
+            {#            <div class="col-auto my-1 backgroundcolor">#}
+            {#                <p>脚注</p>#}
+            {#            </div>#}
+        </div>
+    </div>
+</div>
+
+<script src="js/jquery.min.js"
+        crossorigin="anonymous"></script>
+<script src="js/jquery.form.js"
+        crossorigin="anonymous"></script>
+<script src="js/popper.min.js"
+        crossorigin="anonymous"></script>
+<script src="js/bootstrap.min.js"
+        crossorigin="anonymous"></script>
+<script>
+    $("#local_image").change(function () {
+        $("#local_image_path").val($(this).val());
+    });
+
+    // bind click to submit local image detect
+    $("#local_image_submit").click(function () {
+        var formData = new FormData($('#local_image_form')[0]);
+        console.log(formData);
+        $.ajax({
+            url: '/upload',
+            type: 'post',
+            data: formData,
+            contentType: false, //必须
+            processData: false, //必须
+            success: function (result) {
+
+            },
+            error: function () {
+
+            }
+        });
+    })
+</script>
+<script>
+    var host = window.location.host;
+    $(document).ready(function() {
+        if (!window.WebSocket) {
+            if (window.MozWebSocket) {
+                window.WebSocket = window.MozWebSocket;
+            } else {
+                $('#msg').prepend("<p>你的浏览器不支持Websocket，请换用现代浏览器</p>");
+            }
+        }
+        var wslog = new WebSocket('ws://' + host + '/log');
+        wslog.onopen = function(evt) {
+            $('#msg').append('<li>websocket连接成功</li>');
+        }
+        wslog.onmessage = function(evt) {
+            $('#msg').empty();
+            $('#msg').prepend(evt.data);
+        }
+    });
+</script>
+</body>
+
+</html>
