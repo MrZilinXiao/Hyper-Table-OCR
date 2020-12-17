@@ -554,8 +554,12 @@ class RemoteLogger(object):
     line_limit = 100
 
     @classmethod
+    def _prefix(cls, _format='%Y-%m-%d %H:%M:%S'):
+        return datetime.datetime.strftime(datetime.datetime.now(), _format)
+
+    @classmethod
     def info(cls, line):
-        cls.lines.append('<li>' + line + '</li>')
+        cls.lines.append('<li>' + cls._prefix() + ' ' + line + '</li>')
         if cls.debug:
             print(line)
         cls.lines = cls.lines[-cls.line_limit:]

@@ -8,96 +8,98 @@ import copy
 from utils import draw_boxes, Timer, RemoteLogger
 
 
-# class Table:
-#     def __init__(self, x, y, w, h):
-#         self.x = x
-#         self.y = y
-#         self.w = w
-#         self.h = h
-#         self.joints = None
-#
-#     def __repr__(self):
-#         return "(x: %d, y: %d, w: %d, h: %d)" % (self.x, self.x + self.w, self.y, self.y + self.h)
-#
-#     # Stores the coordinates of the table joints.
-#     # Assumes the n-dimensional array joints is sorted in ascending order.
-#     def set_joints(self, joints):
-#         if self.joints != None:
-#             raise ValueError("Invalid setting of table joints array.")
-#
-#         self.joints = []
-#         row_y = joints[0][1]
-#         row = []
-#         for i in range(len(joints)):
-#             if i == len(joints) - 1:
-#                 row.append(joints[i])
-#                 self.joints.append(row)
-#                 break
-#
-#             row.append(joints[i])
-#
-#             # If the next joint has a new y-coordinate,
-#             # start a new row.
-#             if joints[i + 1][1] != row_y:
-#                 self.joints.append(row)
-#                 row_y = joints[i + 1][1]
-#                 row = []
-#
-#     # Prints the coordinates of the joints.
-#     def print_joints(self):
-#         if self.joints == None:
-#             print("Joint coordinates not found.")
-#             return
-#
-#         print("[")
-#         for row in self.joints:
-#             print("\t" + str(row))
-#         print("]")
-#
-#     # Finds the bounds of table entries in the image by
-#     # using the coordinates of the table joints.
-#     def get_table_entries(self):
-#         if self.joints == None:
-#             print("Joint coordinates not found.")
-#             return
-#
-#         entry_coords = []
-#         for i in range(0, len(self.joints) - 1):
-#             entry_coords.append(self.get_entry_bounds_in_row(self.joints[i], self.joints[i + 1]))
-#
-#         return entry_coords
-#
-#     # Finds the bounds of table entries
-#     # in each row based on the given sets of joints.
-#     def get_entry_bounds_in_row(self, joints_A, joints_B):
-#         row_entries = []
-#
-#         # Since the sets of joints may not have the same
-#         # number of points, we pick the set with a lower number
-#         # of points to find the bounds from.
-#         if len(joints_A) <= len(joints_B):
-#             defining_bounds = joints_A
-#             helper_bounds = joints_B
-#         else:
-#             defining_bounds = joints_B
-#             helper_bounds = joints_A
-#
-#         for i in range(0, len(defining_bounds) - 1):
-#             x = defining_bounds[i][0]
-#             y = defining_bounds[i][1]
-#             w = defining_bounds[i + 1][0] - x  # helper_bounds's (i + 1)th coordinate may not be the lower-right corner
-#             h = helper_bounds[0][1] - y  # helper_bounds has the same y-coordinate for all of its elements
-#
-#             # If the calculated height is less than 0,
-#             # make the height positive and
-#             # use the y-coordinate of the row above for the bounds
-#             if h < 0:
-#                 h = -h
-#                 y = y - h
-#
-#             row_entries.append([x, y, w, h])
-#
-#         return row_entries
+class TraditionalTable:
+    def __init__(self, x, y, w, h):
+        self.x = x
+        self.y = y
+        self.w = w
+        self.h = h
+        self.joints = None
+
+    def __repr__(self):
+        return "(x: %d, y: %d, w: %d, h: %d)" % (self.x, self.x + self.w, self.y, self.y + self.h)
+
+    # Stores the coordinates of the table joints.
+    # Assumes the n-dimensional array joints is sorted in ascending order.
+    def set_joints(self, joints, delta_y=10):
+        if self.joints != None:
+            raise ValueError("Invalid setting of table joints array.")
+
+        self.joints = []
+        row_y = joints[0][1]
+        row = []
+        for i in range(len(joints)):
+            if i == len(joints) - 1:
+                row.append(joints[i])
+                self.joints.append(row)
+                break
+
+            row.append(joints[i])
+
+            # If the next joint has a new y-coordinate,
+            # start a new row.
+            # if joints[i + 1][1] != row_y:
+            if not np.isclose(joints[i+1][1], row_y, atol=delta_y):
+                self.joints.append(row)
+                row_y = joints[i + 1][1]
+                row = []
+
+    # Prints the coordinates of the joints.
+    def print_joints(self):
+        if self.joints == None:
+            print("Joint coordinates not found.")
+            return
+
+        print("[")
+        for row in self.joints:
+            print("\t" + str(row))
+        print("]")
+
+    # Finds the bounds of table entries in the image by
+    # using the coordinates of the table joints.
+    def get_table_entries(self):
+        if self.joints == None:
+            print("Joint coordinates not found.")
+            return
+
+        entry_coords = []
+        for i in range(0, len(self.joints) - 1):
+            entry_coords.append(self.get_entry_bounds_in_row(self.joints[i], self.joints[i + 1]))
+
+        return entry_coords
+
+    # Finds the bounds of table entries
+    # in each row based on the given sets of joints.
+    def get_entry_bounds_in_row(self, joints_A, joints_B):
+        row_entries = []
+
+        # Since the sets of joints may not have the same
+        # number of points, we pick the set with a lower number
+        # of points to find the bounds from.
+        if len(joints_A) <= len(joints_B):
+            defining_bounds = joints_A
+            helper_bounds = joints_B
+        else:
+            defining_bounds = joints_B
+            helper_bounds = joints_A
+
+        for i in range(0, len(defining_bounds) - 1):
+            x = defining_bounds[i][0]
+            y = defining_bounds[i][1]
+            w = defining_bounds[i + 1][0] - x  # helper_bounds's (i + 1)th coordinate may not be the lower-right corner
+            h = helper_bounds[0][1] - y  # helper_bounds has the same y-coordinate for all of its elements
+
+            # If the calculated height is less than 0,
+            # make the height positive and
+            # use the y-coordinate of the row above for the bounds
+            if h < 0:
+                h = -h
+                y = y - h
+
+            row_entries.append([x, y, w, h])
+
+        return row_entries
+
 
 class OCRBlock(object):
     def __init__(self, coord, content, conf=-1.0):
@@ -190,18 +192,6 @@ class Table(object):
 
     def build_structure(self, delta_y=10, delta_x=10, overlap_thr=0.3):
         # 0.0 remove cells who overlap with others too much (abandon)
-        # with Timer('remove (in Match OCR with cells'):
-        #     for j in range(len(self.table_cells) - 1, -1, -1):
-        #         tmp = copy.copy(self.table_cells)  # shallow copy will do its trick
-        #         tmp.pop(j)
-        #         _sum = 0.0
-        #         tmp: List[TableCell]
-        #         for other in tmp:
-        #             _sum += self.table_cells[j].shape.intersection(other.shape).area
-        #         # print("%d: %.4f" % (j, _sum / self.table_cells[j].shape.area))
-        #         if _sum / self.table_cells[j].shape.area > overlap_thr:
-        #             self.table_cells.pop(j)
-        # print("remove cell %d due to overlapping too much" % j)
 
         # 0.1 assign cells in rows by different y (average y of two points from upper edge)
         if len(self.table_cells) == 0:
@@ -235,7 +225,7 @@ class Table(object):
         for k, merged_row in enumerate(self.rows[merged_rows_idx]):
             merged_row: List[TableCell]
             closest_complete_row_idx = self._closest_idx(complete_rows_idx,
-                                                         merged_rows_idx[k])  # find the closest row idx
+                                                         merged_rows_idx[0][k])  # find the closest row idx
             right_match = lambda k1, k2: np.isclose(merged_row[k1].right_x,
                                                     self.rows[complete_rows_idx[closest_complete_row_idx]][k2].right_x,
                                                     atol=delta_x)
@@ -249,7 +239,8 @@ class Table(object):
                 if left_idx >= len(self.rows[complete_rows_idx[closest_complete_row_idx]]):
                     break
 
-            assert len(merged_row) == len(checkpoints)
+            if len(merged_row) != len(checkpoints):  # this happens when unmerged row is detected incorrectly!
+                raise RuntimeError("表格重建失败，未识别的表格形式，请尝试其他的表格重建方法！")
 
             if not checkpoints:
                 break

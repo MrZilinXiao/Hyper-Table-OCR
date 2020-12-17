@@ -58,9 +58,7 @@ def preprocess(ori_img):
         warped = four_point_transform(ori_img, screenCnt.reshape(4, 2))
         return warped, tmp
     else:
-        RemoteLogger.info("没有可见清晰边缘，透视变换失败")
         raise RuntimeError("没有可见清晰边缘，透视变换失败")
-        # return ori_img, ori_img
 
 
 if __name__ == '__main__':

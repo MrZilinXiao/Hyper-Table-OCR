@@ -7,14 +7,15 @@ for device in tf.config.experimental.list_physical_devices("GPU"):
 
 import xlsxwriter
 
-from utils import Singleton, Timer, EmptyTimer, draw_lines, minAreaRectbox, draw_boxes, RemoteLogger
+from utils import Singleton, Timer, EmptyTimer, draw_lines, minAreaRectbox, draw_boxes, RemoteLogger, eval_angle
 from typing import List, Union
-from skimage import measure
-from boardered.table_net import table_line, table_net
+
+from boardered.table_net import table_net
+from boardered.extractor import UNetExtractor, TraditionalExtractor
 from table import Table, TableCell
 from table.transform import preprocess
 from ocr import PaddleHandler
-from ocr.tools.infer.utility import draw_ocr_box_txt, draw_ocr
+from ocr.tools.infer.utility import draw_ocr_box_txt
 import uuid
 import os
 
@@ -35,6 +36,10 @@ class WebHandler:
         'paddle': PaddleHandler,
         'paddle_lite': PaddleHandler
     }
+    # _LINE_FACROTY = {
+    #     'unet': UNetExtractor,
+    #     'traditional': TraditionalExtractor
+    # }
 
     def __init__(self, config: Union[str, dict] = './config.yml', debug=True, preload=True, device='cuda:0',
                  static_folder='static/'):
@@ -61,6 +66,10 @@ class WebHandler:
             with self.timer("Load line segmentation model"):
                 self._LINE_MODEL = table_net((*self.config_dict['table_line']['unet']['input_shape'], 3), num_classes=2)
                 self._LINE_MODEL.load_weights(self.config_dict['table_line']['unet']['model_path'])
+                self._UNET_CELL_HANDLER = UNetExtractor(self._LINE_MODEL, self._LINE_MODEL, self.hprob, self.vprob)
+
+        self._TRADITIONAL_CELL_HANDLER = TraditionalExtractor()
+
         if self._OCR_MODEL is None:
             det_model_dir = self.config_dict['ocr']['paddle']['det_path']
             rec_model_dir = self.config_dict['ocr']['paddle']['rec_path']
@@ -97,6 +106,8 @@ class WebHandler:
         t_detection = kwargs['t_detection']
         ocr_det_disable = kwargs['ocr_det_disable']
         ocr_type = kwargs['ocr']
+        adjust_angle = kwargs['adjust_angle']
+        traditional_cell = kwargs['traditional_cell']
         # async_cell_ocr = kwargs['async_cell_ocr']
         ret_stages = {
             'debug': ''
@@ -104,7 +115,7 @@ class WebHandler:
 
         # 0. preprocessing
         with self.timer("preprocessing") as t_preprocess:
-            preprocessed_img, flagged = self._preprocess(ori_img, p_trans=p_trans)
+            preprocessed_img, flagged = self._preprocess(ori_img, p_trans=p_trans, adjust_angle=adjust_angle)
 
         # 1. table detection for boarded & boarderless table
         with self.timer("table detection") as t_det:
@@ -115,7 +126,7 @@ class WebHandler:
                 tables = np.array([[0, 0, *preprocessed_img.shape[1::-1]]])
             # 2. get cells using UNet and postprocessing
         with self.timer("cells extraction") as t_cell:
-            cells = self._get_cells(preprocessed_img, tables)  # cells coords not changed
+            cells = self._get_cells(preprocessed_img, tables, traditional=traditional_cell)  # cells coords not changed
 
         # 3. get content from OCR (can be async between cell extraction if performance not fit)
         # TODO: consider using dual GPUs to perform async operations
@@ -154,6 +165,9 @@ class WebHandler:
             match=[t_match.msecs, req_id + '_match.jpg']
         )
 
+        # cv2.imshow('pure match', match_img)
+        # cv2.waitKey(0)
+
         # visualize OCR result
         image = Image.fromarray(cv2.cvtColor(match_img, cv2.COLOR_BGR2RGB))
 
@@ -166,7 +180,7 @@ class WebHandler:
             boxes.append(coord)
         boxes = np.array(boxes)
 
-        img_left, img_right = draw_ocr_box_txt(
+        img_left, img_right = draw_ocr_box_txt(  # TODO: see img_left, why img_left is exactly the same with match_img
             image,
             boxes,
             txts,
@@ -185,7 +199,7 @@ class WebHandler:
                     img_left[:, :, ::-1])
 
         cv2.imwrite(os.path.join(self.static_prefix, req_id + '_original.jpg'), ori_img)
-        if p_trans:
+        if p_trans or adjust_angle:
             cv2.imwrite(os.path.join(self.static_prefix, req_id + '_pre.jpg'), preprocessed_img)
             cv2.imwrite(os.path.join(self.static_prefix, req_id + '_flagged.jpg'), flagged)
             ret_stages.update(
@@ -196,7 +210,7 @@ class WebHandler:
             table_img = draw_boxes(preprocessed_img, tables)
             cv2.imwrite(os.path.join(self.static_prefix, req_id + '_table.jpg'), table_img)
             ret_stages.update(
-                det=[t_det.msecs, os.path.join(self.static_prefix, req_id + '_table.jpg')]
+                det=[t_det.msecs, os.path.join(req_id + '_table.jpg')]
             )
         cv2.imwrite(os.path.join(self.static_prefix, req_id + '_cell.jpg'), tmp_cell)
         self.to_excel(filename=os.path.join(self.static_prefix, req_id + '.xlsx'), need_title=not t_detection)
@@ -204,7 +218,7 @@ class WebHandler:
 
         return ret_stages
 
-    def _preprocess(self, ori_img: np.ndarray, p_trans=False) -> (np.ndarray, np.ndarray):
+    def _preprocess(self, ori_img: np.ndarray, p_trans=False, adjust_angle=False) -> (np.ndarray, np.ndarray):
         """
         Apply four-point perspective transformation based on the largest rectangle
         This requires clear edges can be seen in original image (paper edge or single table edge)
@@ -212,9 +226,16 @@ class WebHandler:
         :param p_trans: bool
         :return: wrapped, drawn
         """
-        if not p_trans:
-            return ori_img, ori_img
-        return preprocess(ori_img)
+        flagged = None
+        if p_trans:
+            ori_img, flagged = preprocess(ori_img)
+        if adjust_angle:
+            ori_img, degree = eval_angle(ori_img, [-5, 5])
+            RemoteLogger.info("开启了角度校正，度数为%d°" % degree)
+        return ori_img, flagged if flagged is not None else ori_img
+
+    def _get_cells(self, ori_img, tables, traditional=False):
+        return self._TRADITIONAL_CELL_HANDLER.get_cells(ori_img, tables) if traditional else self._UNET_CELL_HANDLER.get_cells(ori_img, tables)
 
     def _get_tables(self, ori_img) -> np.ndarray:  # xyxy
         h, w, _ = ori_img.shape
@@ -241,35 +262,10 @@ class WebHandler:
         # return np.array([[0, 0, *ori_img.shape[1::-1]]])
 
     def _get_ocr(self, ori_img, _type='paddle', dt_boxes=None) -> dict:
-        return self.ocr_options[_type].get_result(ori_img, dt_boxes=dt_boxes)
-
-    def _get_cells(self, ori_img, table_coords) -> List[np.ndarray]:  # in tensorflow
-        cells = []
-        # table_imgs = []
-        for coord in table_coords:  # for each boarded table
-            xmin, ymin, xmax, ymax = [int(k) for k in coord]  # used for cropping & shifting
-            table_img = ori_img[ymin:ymax, xmin:xmax]  # cropped img
-            with Timer("lines extraction(in cells extraction)"):
-                row_boxes, col_boxes = table_line(self._LINE_MODEL, table_img[..., ::-1],
-                                                  size=self.unet_shape,
-                                                  hprob=self.hprob,
-                                                  vprob=self.vprob)
-            tmp = np.zeros(ori_img.shape[:2], dtype=np.uint8)
-            tmp = draw_lines(tmp, row_boxes + col_boxes, color=255, lineW=2)
-            labels = measure.label(tmp < 255, connectivity=2)  # 解八连通区域
-            regions = measure.regionprops(labels)
-            cell_boxes = minAreaRectbox(regions, flag=False, W=tmp.shape[1], H=tmp.shape[0], filtersmall=True,
-                                        adjustBox=True)
-            cell_boxes = np.array(cell_boxes)
-            if len(cell_boxes.shape) == 1:
-                # TODO: Add Prompt
-                RemoteLogger.info("在此表中未构建出cell！")
-                continue
-            # shifting to fit original image
-            cell_boxes[:, [0, 2, 4, 6]] += xmin  # cell_boxes: [N, 8]  N: number of boxes of each table
-            cell_boxes[:, [1, 3, 5, 7]] += ymin
-            cells.append(cell_boxes)
-        return cells
+        try:
+            return self.ocr_options[_type].get_result(ori_img, dt_boxes=dt_boxes)
+        except AttributeError:  # selected OCR model is not loaded
+            raise RuntimeError("选择的模型%s未被加载，请修改配置！" % _type)
 
     def _match(self, cells, ocr: dict, tables, img):
         if len(cells) != len(tables):

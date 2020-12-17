@@ -41,7 +41,8 @@ class MainView(views.View, ABC):
     _advance_options = {
         't_detection': ('启用表格检测', False),
         'ocr_det_disable': ('禁用OCR定位模块', False),
-        'p_trans': ('启用透视变换', True)
+        'p_trans': ('启用透视变换', True),
+        'adjust_angle': ('启用角度纠正', False)
     }
 
     # _online_log_path = 'web_remote.log'
@@ -92,7 +93,7 @@ class UploadView(views.View, ABC):
             f.save(os.path.join(self.tmp_root, f.filename))
             ori_img = cv2.imread(os.path.join(self.tmp_root, f.filename))
             ret_details = main_view.web_handler.pipeline(ori_img, **submit_kwargs)
-
+            RemoteLogger.info("完成！调试信息：%s" % ret_details)
             # handler return info: {'debug': '', 'total_time': 370.9299564361572,
             # 'original': '1c9e9711-f01d-4113-b11e-e546428a759a_original.jpg',
             # 'cell': [111.13262176513672, '1c9e9711-f01d-4113-b11e-e546428a759a_cell.jpg'],
@@ -102,6 +103,7 @@ class UploadView(views.View, ABC):
             # 'excel': '1c9e9711-f01d-4113-b11e-e546428a759a.xlsx'}
             return jsonify({'status': '10000', 'details': ret_details})
         except Exception as e:  # for friendly prompts
+            RemoteLogger.info(str(e))
             return jsonify({'status': '40001', 'desp': '未预见的错误: %s' % str(e)})
 
 
