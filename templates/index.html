@@ -133,15 +133,19 @@
                 <div class="form-row align-items-center">
                     <div class="col-6">
                         <div class="col-auto my-1">
-                            <label class="sr-only" for="inlineFormInput">URLName</label>
-                            <input id="inlineFormInput" name="local_image" class="form-control mb-2"
+                            <label class="sr-only" for="img_file">URLName</label>
+                            <input id="img_file" name="local_image" class="form-control mb-2"
                                    type="file"/>
+
+                        </div>
+                        <div class="col-auto my-1" id="img_info">
 
                         </div>
                     </div>
                     <div class="col-2">
                         <div class="col-auto my-1">
-                            <button class="btn btn-primary" id="local_image_submit" type="button">提交</button>
+                            <button class="btn btn-primary" id="local_image_submit" type="button">提交
+                            </button>
                         </div>
                     </div>
                     <div class="col-2">
@@ -205,7 +209,7 @@
         <div class="col-12 backgroundcolor" id="button_row">
             <button class="btn btn-primary" id="download" type="button" disabled="disabled">下载Excel文件</button>
             <label id="table_title"></label>
-{#            <button class="btn btn-info" id="check_pipeline" type="button" disabled="disabled">查看OCR流水线</button>#}
+            {#            <button class="btn btn-info" id="check_pipeline" type="button" disabled="disabled">查看OCR流水线</button>#}
         </div>
     </div>
 
@@ -246,6 +250,46 @@
         crossorigin="anonymous"></script>
 <script src="js/echarts.min.js"
         crossorigin="anonymous"></script>
+
+<script>
+    window.check = function () {
+        var input = document.getElementById("img_file");
+        if (input.files) {
+            //读取图片数据
+            var f = input.files[0];
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                var data = e.target.result;
+                //加载图片获取图片真实宽度和高度
+                var image = new Image();
+                image.onload = function () {
+                    var width = image.width;
+                    var height = image.height;
+                    $("#img_info").html("图片分辨率: " + width + "X" + height + ", 文件大小:" + (f.size / 1024).toFixed(1) + "KB")
+                    // alert(width + '======' + height + "=====" + f.size);
+                };
+                image.src = data;
+            };
+            reader.readAsDataURL(f);
+        } else {
+            var image = new Image();
+            image.onload = function () {
+                var width = image.width;
+                var height = image.height;
+                var fileSize = image.fileSize;
+                $("#img_info").html("图片分辨率: " + width + "X" + height + ", 文件大小:" + fileSize / 1024 + "KB")
+
+            }
+            image.src = input.value;
+
+        }
+
+    }
+    $("#img_file").change(function (e) {
+        check();
+    });
+</script>
+
 <script>
     //关闭并移除图层
     function closeImg() {
