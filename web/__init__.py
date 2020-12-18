@@ -7,7 +7,7 @@ for device in tf.config.experimental.list_physical_devices("GPU"):
 
 import xlsxwriter
 
-from utils import Singleton, Timer, EmptyTimer, draw_lines, minAreaRectbox, draw_boxes, RemoteLogger, eval_angle
+from utils import Singleton, Timer, EmptyTimer, draw_boxes, RemoteLogger, eval_angle
 from typing import List, Union
 
 from boardered.table_net import table_net
@@ -36,6 +36,7 @@ class WebHandler:
         'paddle': PaddleHandler,
         'paddle_lite': PaddleHandler
     }
+
     # _LINE_FACROTY = {
     #     'unet': UNetExtractor,
     #     'traditional': TraditionalExtractor
@@ -66,7 +67,7 @@ class WebHandler:
             with self.timer("Load line segmentation model"):
                 self._LINE_MODEL = table_net((*self.config_dict['table_line']['unet']['input_shape'], 3), num_classes=2)
                 self._LINE_MODEL.load_weights(self.config_dict['table_line']['unet']['model_path'])
-                self._UNET_CELL_HANDLER = UNetExtractor(self._LINE_MODEL, self._LINE_MODEL, self.hprob, self.vprob)
+                self._UNET_CELL_HANDLER = UNetExtractor(self._LINE_MODEL, self.unet_shape, self.hprob, self.vprob)
 
         self._TRADITIONAL_CELL_HANDLER = TraditionalExtractor()
 
@@ -107,7 +108,7 @@ class WebHandler:
         ocr_det_disable = kwargs['ocr_det_disable']
         ocr_type = kwargs['ocr']
         adjust_angle = kwargs['adjust_angle']
-        traditional_cell = kwargs['traditional_cell']
+        traditional_cell = kwargs['cell'] == 'traditional'
         # async_cell_ocr = kwargs['async_cell_ocr']
         ret_stages = {
             'debug': ''
@@ -235,7 +236,9 @@ class WebHandler:
         return ori_img, flagged if flagged is not None else ori_img
 
     def _get_cells(self, ori_img, tables, traditional=False):
-        return self._TRADITIONAL_CELL_HANDLER.get_cells(ori_img, tables) if traditional else self._UNET_CELL_HANDLER.get_cells(ori_img, tables)
+        return self._TRADITIONAL_CELL_HANDLER.get_cells(ori_img,
+                                                        tables) if traditional else self._UNET_CELL_HANDLER.get_cells(
+            ori_img, tables)
 
     def _get_tables(self, ori_img) -> np.ndarray:  # xyxy
         h, w, _ = ori_img.shape
@@ -268,7 +271,7 @@ class WebHandler:
             raise RuntimeError("选择的模型%s未被加载，请修改配置！" % _type)
 
     def _match(self, cells, ocr: dict, tables, img):
-        if len(cells) != len(tables):
+        if len(cells) != len(tables) or cells is None:
             raise RuntimeError("对表格未检出Cell！")
         self.tables = []
         for i in range(len(tables)):

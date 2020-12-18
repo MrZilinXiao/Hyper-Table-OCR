@@ -355,3 +355,4 @@ dev_tmp.ipynb
 *.h5
 TableUNet.py
 table_cell.py
+network-bsds500.pytorch

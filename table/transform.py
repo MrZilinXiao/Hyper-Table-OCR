@@ -1,7 +1,7 @@
 import numpy as np
 import cv2
 import imutils
-from utils import RemoteLogger
+from table.HED import predict_edge
 
 
 def order_points(pts):
@@ -36,12 +36,17 @@ def four_point_transform(image, pts):
     return warped
 
 
-def preprocess(ori_img):
+def preprocess(ori_img, hed_model=None):
     # 1. edge detection
     tmp = ori_img.copy()
     gray = cv2.cvtColor(tmp, cv2.COLOR_BGR2GRAY)
     gray = cv2.GaussianBlur(gray, (5, 5), 0)
-    edged = cv2.Canny(gray, 75, 200)
+
+    if hed_model is None:
+        edged = cv2.Canny(gray, 75, 200)
+    else:  # refer to HED model
+        edged = predict_edge(hed_model, ori_img).astype(np.uint8)
+
     cnts = cv2.findContours(edged.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
     cnts = imutils.grab_contours(cnts)  # keep easy format
     cnts = sorted(cnts, key=cv2.contourArea, reverse=True)[:5]
@@ -62,8 +67,12 @@ def preprocess(ori_img):
 
 
 if __name__ == '__main__':
-    # resized_height = 500
-    ori_img = cv2.imread('./test_1.jpg')
-    warped, flagged = preprocess(ori_img)
+    from table.HED import HEDNet
+
+    model = HEDNet()
+    model.load_weight()
+
+    ori_img = cv2.imread('./test_720p.JPG')
+    warped, flagged = preprocess(ori_img, hed_model=model)
     cv2.imwrite('warped.jpg', warped)
     cv2.imwrite('flagged.jpg', flagged)
