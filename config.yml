@@ -1,3 +1,5 @@
+preprocessing:
+  hed_path: './network-bsds500.pytorch'
 table_detection:
   model_path: './new_epoch_24.pth'
   config_path: './cascade_mask_rcnn_hrnetv2p_w32_20e.py'

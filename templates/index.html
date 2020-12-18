@@ -171,11 +171,22 @@
                     <div class="col-2">
                         <div class="col-auto my-1">
                             {% for option in advance %}
-                                <div class="custom-control custom-checkbox mr-sm-2">
-                                    <input type="checkbox" class="custom-control-input" id="{{ option.value }}"
-                                           name="{{ option.value }}"{% if option.enable %} checked{% endif %}>
-                                    <label class="custom-control-label"
-                                           for="{{ option.value }}">{{ option.desp }}</label>
+                                <div class="row">
+                                    <div class="custom-control custom-checkbox mr-sm-2">
+                                        <input type="checkbox" class="custom-control-input" id="{{ option.value }}"
+                                               name="{{ option.value }}"{% if option.enable %} checked{% endif %}>
+                                        <label class="custom-control-label"
+                                               for="{{ option.value }}">{{ option.desp }}</label>
+                                    </div>
+                                    {% if option.value == 'p_trans' %}
+                                        <select class="custom-select mr-sm-3" id="p_trans_options"
+                                                form="local_image_form"
+                                                name="p_trans_options">
+                                            {% for option in p_trans_options %}
+                                                <option value="{{ option.value }}">{{ option.desp }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    {% endif %}
                                 </div>
                             {% endfor %}
                         </div>
@@ -250,6 +261,16 @@
         crossorigin="anonymous"></script>
 <script src="js/echarts.min.js"
         crossorigin="anonymous"></script>
+
+<script>
+    $("#p_trans").click(function () {
+        if (!$(this).prop('checked')) {
+            $("#p_trans_options").attr("disabled", true);
+        } else {
+            $("#p_trans_options").removeAttr("disabled");
+        }
+    })
+</script>
 
 <script>
     window.check = function () {

@@ -1,12 +1,13 @@
 from abc import ABC
-from flask import Flask, request, jsonify, views, render_template
+
 # import gevent
 import gevent.monkey
+from flask import Flask, request, jsonify, views, render_template
+
 gevent.monkey.patch_all()
 from geventwebsocket.handler import WebSocketHandler
 from gevent.pywsgi import WSGIServer
-from geventwebsocket.websocket import WebSocket
-from utils import MyLogger, RemoteLogger
+from utils import RemoteLogger
 from web import WebHandler
 import os
 import yaml
@@ -28,7 +29,7 @@ app = Flask(__name__, static_url_path='',
 class MainView(views.View, ABC):
     methods = ['GET']
     config_dict = yaml.load(open('./config.yml', 'r'), Loader=yaml.Loader)
-    web_handler = WebHandler(config_dict, static_folder=app.static_folder)
+    web_handler = WebHandler(config_dict, static_folder=app.static_folder, local_no_gpu_test=True)
     _cell_mapping = {
         'unet': 'UNet网格线分割',
         'traditional': '传统方法分割'
@@ -44,6 +45,10 @@ class MainView(views.View, ABC):
         'p_trans': ('启用透视变换', True),
         'adjust_angle': ('启用角度纠正', False)
     }
+    _p_trans_options = {
+        'traditional': 'Canny算子',
+        'hed': 'HED边缘检测'
+    }
 
     # _online_log_path = 'web_remote.log'
 
@@ -57,7 +62,13 @@ class MainView(views.View, ABC):
                             enumerate(self.config_dict['table_line'].keys()) if k != 'type']
         advance_options = [{'value': k, 'desp': self._advance_options[k][0], 'enable': self._advance_options[k][1]} for
                            k in self._advance_options.keys()]
-        return render_template('index.html', ocr=ocr_method_list, cell=cell_method_list, advance=advance_options)
+        p_trans_options = [{'value': k, 'desp': '%d: ' % idx + self._p_trans_options[k]}
+                           for idx, k in enumerate(self._p_trans_options.keys())]
+        return render_template('index.html',
+                               ocr=ocr_method_list,
+                               cell=cell_method_list,
+                               advance=advance_options,
+                               p_trans_options=p_trans_options)
 
     @property
     def advance_options(self):
@@ -125,6 +136,8 @@ def log():
 
 
 if __name__ == '__main__':
-    http_serv = WSGIServer((main_view.config_dict['web']['host'], main_view.config_dict['web']['port']), app, handler_class=WebSocketHandler)
+    http_serv = WSGIServer((main_view.config_dict['web']['host'], main_view.config_dict['web']['port']), app,
+                           handler_class=WebSocketHandler)
+    RemoteLogger.info("服务启动完成！")
     http_serv.serve_forever()
     # app.run(debug=False, **main_view.config_dict['web'])

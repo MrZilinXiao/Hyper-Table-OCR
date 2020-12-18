@@ -14,6 +14,7 @@ from boardered.table_net import table_net
 from boardered.extractor import UNetExtractor, TraditionalExtractor
 from table import Table, TableCell
 from table.transform import preprocess
+from table.HED import HEDNet
 from ocr import PaddleHandler
 from ocr.tools.infer.utility import draw_ocr_box_txt
 import uuid
@@ -43,7 +44,9 @@ class WebHandler:
     # }
 
     def __init__(self, config: Union[str, dict] = './config.yml', debug=True, preload=True, device='cuda:0',
-                 static_folder='static/'):
+                 static_folder='static/', local_no_gpu_test=False):
+        if local_no_gpu_test:  # for local test, will not loading any models!
+            return
         self.device = device
         if not tf.test.is_gpu_available():
             self.device = 'cpu'
@@ -79,6 +82,10 @@ class WebHandler:
             det_model_dir = self.config_dict['ocr']['paddle_lite']['det_path']
             rec_model_dir = self.config_dict['ocr']['paddle_lite']['rec_path']
             self._OCR_MODEL_LITE = self._OCR_FACTORY['paddle_lite'](det_model_dir, rec_model_dir)
+
+        self.hed_model = HEDNet().to(self.device)
+        self.hed_model.load_weight(self.config_dict['preprocessing']['hed_path'])
+
         self.ocr_options = {
             'paddle': self._OCR_MODEL,
             'paddle_lite': self._OCR_MODEL_LITE
@@ -109,6 +116,7 @@ class WebHandler:
         ocr_type = kwargs['ocr']
         adjust_angle = kwargs['adjust_angle']
         traditional_cell = kwargs['cell'] == 'traditional'
+        p_trans_options = kwargs['p_trans_options']
         # async_cell_ocr = kwargs['async_cell_ocr']
         ret_stages = {
             'debug': ''
@@ -116,7 +124,7 @@ class WebHandler:
 
         # 0. preprocessing
         with self.timer("preprocessing") as t_preprocess:
-            preprocessed_img, flagged = self._preprocess(ori_img, p_trans=p_trans, adjust_angle=adjust_angle)
+            preprocessed_img, flagged = self._preprocess(ori_img, p_trans=p_trans, adjust_angle=adjust_angle, p_trans_options=p_trans_options)
 
         # 1. table detection for boarded & boarderless table
         with self.timer("table detection") as t_det:
@@ -219,7 +227,7 @@ class WebHandler:
 
         return ret_stages
 
-    def _preprocess(self, ori_img: np.ndarray, p_trans=False, adjust_angle=False) -> (np.ndarray, np.ndarray):
+    def _preprocess(self, ori_img: np.ndarray, p_trans=False, adjust_angle=False, p_trans_options='traditional') -> (np.ndarray, np.ndarray):
         """
         Apply four-point perspective transformation based on the largest rectangle
         This requires clear edges can be seen in original image (paper edge or single table edge)
@@ -229,7 +237,7 @@ class WebHandler:
         """
         flagged = None
         if p_trans:
-            ori_img, flagged = preprocess(ori_img)
+            ori_img, flagged = preprocess(ori_img, hed_model=self.hed_model if p_trans_options == 'hed' else None)
         if adjust_angle:
             ori_img, degree = eval_angle(ori_img, [-5, 5])
             RemoteLogger.info("开启了角度校正，度数为%d°" % degree)
