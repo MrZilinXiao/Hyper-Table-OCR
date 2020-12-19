@@ -1,41 +1,15 @@
-# from ocr.crnn import FullCrnn, CRNNHandle
-# from ocr.dbnet.dbnet_infer import DBNET
-# from ocr.alphabet_chinese import alphabet
-# from ocr.crnn.CRNN import CRNNHandle
-#
-#
-# class OCRHandler(object):
-#     """
-#     Handler for OCR support
-#     Word segmentation: dbnet, psenet
-#     Recognition: crnn
-#     """
-#     _det_factory = {
-#         'dbnet': DBNET
-#     }
-#     _rec_factory = {
-#         'full_lstm': FullCrnn
-#     }
-#
-#     def __init__(self, det_type='dbnet',
-#                  rec_type='full_lstm',
-#                  det_model_path='./dbnet.onnx',
-#                  dbnet_short_size=960,
-#                  rec_model_path='./ocr-lstm.pth'):
-#         if det_type not in self._det_factory:
-#             raise ValueError("OCR detection model '{}' not support!".format(det_type))
-#         if rec_type not in self._rec_factory:
-#             raise ValueError("OCR recognition model '{}' not support!".format(rec_type))
-#         self.detect_net = self._det_factory[det_type](det_model_path, short_size=dbnet_short_size)
-#         self.rec_net = self._rec_factory[rec_type](32, 1, len(alphabet) + 1, 256, n_rnn=2, leakyRelu=False, lstmFlag='lstm' in rec_type)
-#         self.rec_handle = CRNNHandle(rec_model_path, self.rec_net, gpu_id=0)
-#         # TODO: placeholder for paddle-ocr
-#
-#     def text_predict(self):
-#         pass
+import copy
+
+from PIL import Image
+
+from chineseocr.crnn import FullCrnn, CRNNHandle
+from chineseocr.dbnet.dbnet_infer import DBNET
+from chineseocr.crnn.keys import alphabetChinese as alphabet
+# from chineseocr.crnn.CRNN import CRNNHandle
+
 import abc
 from ocr.tools.infer.predict_system import TextSystem
-from utils import Timer
+from utils import Timer, sorted_boxes, get_rotate_crop_image
 import argparse
 import numpy as np
 
@@ -64,8 +38,8 @@ class PaddleHandler(OCRHandler):
     use_space_char = True
     gpu_mem = 4096
 
-    def __init__(self, det_model_dir="./inference/ch_ppocr_server_v1.1_det_infer/",
-                 rec_model_dir="./inference/ch_ppocr_server_v1.1_rec_infer/",
+    def __init__(self, det_model_dir="./models/ch_ppocr_server_v1.1_det_infer/",
+                 rec_model_dir="./models/ch_ppocr_mobile_v1.1_rec_infer/",
                  cls_model_dir=""):
         super(PaddleHandler, self).__init__()
         self.det_model_dir = det_model_dir
@@ -163,16 +137,91 @@ class PaddleHandler(OCRHandler):
 
 class ChineseOCRHandler(OCRHandler):
     """
-    Placeholder for ChineseOCR
+    Handler for OCR support
+    Word segmentation: dbnet, psenet
+    Recognition: crnn
     """
-    def __init__(self, *kw, **kwargs):
-        super().__init__(*kw, **kwargs)
+    _det_factory = {
+        'dbnet': DBNET
+    }
+    _rec_factory = {
+        'full_lstm': FullCrnn
+    }
+
+    def __init__(self, det_type='dbnet',
+                 rec_type='full_lstm',
+                 det_model_path='./models/dbnet.onnx',
+                 dbnet_short_size=960,
+                 rec_model_path='./models/ocr-lstm.pth',
+                 device='cuda:0'):
+        super(OCRHandler, self).__init__()
+        if det_type not in self._det_factory:
+            raise ValueError("OCR detection model '{}' not support!".format(det_type))
+        if rec_type not in self._rec_factory:
+            raise ValueError("OCR recognition model '{}' not support!".format(rec_type))
+        self.det_net = self._det_factory[det_type](det_model_path, short_size=dbnet_short_size)
+        self.rec_net = self._rec_factory[rec_type](32, 1, len(alphabet) + 1, 256, n_rnn=2, leakyRelu=False,
+                                                   lstmFlag='lstm' in rec_type)
+        self.rec_handle = CRNNHandle(rec_model_path, self.rec_net, device=device)
+        # self._warmup()
+
+    def _warmup(self):
+        with Timer("ONNX warmup"):
+            tmp = np.random.randn(1024, 1024, 3).astype(np.uint8)
+            self.det_net.process(tmp)
+
+    def crnnRecWithBox(self, im, boxes_list):
+        results = []
+        boxes_list = sorted_boxes(np.array(boxes_list))
+        for index, box in enumerate(boxes_list):
+            tmp_box = copy.deepcopy(box)
+            partImg_array = get_rotate_crop_image(im, tmp_box.astype(np.float32))
+
+            partImg = Image.fromarray(partImg_array).convert("RGB")
+            partImg_ = partImg.convert('L')
+            newW, newH = partImg.size
+            try:
+                simPred = self.rec_handle.predict(partImg_)  ##识别的文本
+            except:
+                continue
+            if simPred.strip() != u'':
+                # results.append({'cx': 0, 'cy': 0, 'text': simPred, 'w': newW, 'h': newH,
+                # 'degree': 0})
+                results.append(simPred)
+                # results.append({ 'text': simPred, })
+        return results
+
+    @staticmethod
+    def _convert(result, boxes_list, scores_list):
+        sentences = {'sentences': []}
+        for i, _str in enumerate(result):
+            box = boxes_list[i].tolist()
+            score = round(scores_list[i].astype(np.float32), 2)
+            sentences['sentences'].append([_str, box, score])
+        return sentences
+
+    def get_result(self, img: np.ndarray, dt_boxes=None):
+        #  {'sentences': [['麦格尔特杯表格OCR测试表格2', [[85.0, 10.0], [573.0, 30.0], [572.0, 54.0], [84.0, 33.0]], 0.9],...]}
+        with Timer('ONNX dbnet'):
+            boxes_list, scores_list = self.det_net.process(img)  # onnxruntime can be run on GPU
+        boxes_list = sorted_boxes(boxes_list)
+        # boxes_list: List[np.ndarray] (N, 4, 2)
+        with Timer('CRNN'):
+            result = self.crnnRecWithBox(img, boxes_list)
+        return self._convert(result, boxes_list, scores_list)
 
 
 if __name__ == '__main__':
     import cv2
 
-    # unittests for OCR
+    # unittests for PaddleOCR
     handler = PaddleHandler()
     img = cv2.imread('./merged.jpg')
     print(handler.get_result(img))
+
+    chinese_handler = ChineseOCRHandler()
+    print(chinese_handler.get_result(img))
+    pass
+
+    # unittests for ChineseOCR
+

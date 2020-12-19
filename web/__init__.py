@@ -15,7 +15,7 @@ from boardered.extractor import UNetExtractor, TraditionalExtractor
 from table import Table, TableCell
 from table.transform import preprocess
 from table.HED import HEDNet
-from ocr import PaddleHandler
+from ocr import PaddleHandler, ChineseOCRHandler
 from ocr.tools.infer.utility import draw_ocr_box_txt
 import uuid
 import os
@@ -33,15 +33,12 @@ class WebHandler:
     _LINE_MODEL = None
     _OCR_MODEL = None
     _OCR_MODEL_LITE = None
+    _OCR_CHINESE_OCR = None
     _OCR_FACTORY = {
         'paddle': PaddleHandler,
-        'paddle_lite': PaddleHandler
+        'paddle_lite': PaddleHandler,
+        'chineseocr': ChineseOCRHandler
     }
-
-    # _LINE_FACROTY = {
-    #     'unet': UNetExtractor,
-    #     'traditional': TraditionalExtractor
-    # }
 
     def __init__(self, config: Union[str, dict] = './config.yml', debug=True, preload=True, device='cuda:0',
                  static_folder='static/', local_no_gpu_test=False):
@@ -83,12 +80,18 @@ class WebHandler:
             rec_model_dir = self.config_dict['ocr']['paddle_lite']['rec_path']
             self._OCR_MODEL_LITE = self._OCR_FACTORY['paddle_lite'](det_model_dir, rec_model_dir)
 
-        self.hed_model = HEDNet().to(self.device)
-        self.hed_model.load_weight(self.config_dict['preprocessing']['hed_path'])
+        if self._OCR_CHINESE_OCR is None:
+            det_model_dir = self.config_dict['ocr']['chineseocr']['det_path']
+            rec_model_dir = self.config_dict['ocr']['chineseocr']['rec_path']
+            self._OCR_CHINESE_OCR = self._OCR_FACTORY['chineseocr'](det_model_path=det_model_dir, rec_model_path=rec_model_dir)
+
+        self.hed_model = HEDNet(ckpt_path=self.config_dict['preprocessing']['hed_path']).to(self.device)
+        # self.hed_model.load_weight()
 
         self.ocr_options = {
             'paddle': self._OCR_MODEL,
-            'paddle_lite': self._OCR_MODEL_LITE
+            'paddle_lite': self._OCR_MODEL_LITE,
+            'chineseocr': self._OCR_CHINESE_OCR
         }
         if preload:
             with self.timer('Preload LINE MODEL'):
@@ -111,12 +114,13 @@ class WebHandler:
         # b. table detection enable or not (whether there are multiple tables in the same page)
         # c. table cell extraction & OCR & match are compulsory
         p_trans = kwargs['p_trans']
+        p_trans_options = kwargs['p_trans_options'] if 'p_trans_options' in kwargs else None
+
         t_detection = kwargs['t_detection']
         ocr_det_disable = kwargs['ocr_det_disable']
         ocr_type = kwargs['ocr']
         adjust_angle = kwargs['adjust_angle']
         traditional_cell = kwargs['cell'] == 'traditional'
-        p_trans_options = kwargs['p_trans_options']
         # async_cell_ocr = kwargs['async_cell_ocr']
         ret_stages = {
             'debug': ''
@@ -248,7 +252,7 @@ class WebHandler:
                                                         tables) if traditional else self._UNET_CELL_HANDLER.get_cells(
             ori_img, tables)
 
-    def _get_tables(self, ori_img) -> np.ndarray:  # xyxy
+    def _get_tables(self, ori_img, top_left_pad_ratio=0.1) -> np.ndarray:  # xyxy
         h, w, _ = ori_img.shape
         coords, _ = inference_detector(self._DETECTION_MODEL, ori_img)
         coords: List[np.ndarray]
@@ -259,8 +263,8 @@ class WebHandler:
         # adjust bbox according to confidence
         pad_x = (x2 - x1) * (1 - conf)  # higher conf leads to lower padding
         pad_y = (y2 - y1) * (1 - conf)
-        x1 = x1 - pad_x
-        y1 = y1 - pad_y
+        x1 = x1 - pad_x - (x2 - x1) * top_left_pad_ratio
+        y1 = y1 - pad_y - (y2 - y1) * top_left_pad_ratio
         x2 = x2 + pad_x
         y2 = y2 + pad_y
         # set boundaries for adjusted bbox
@@ -292,7 +296,7 @@ class WebHandler:
     def to_excel(self, filename='./debug.xlsx', need_title=False):
         workbook = xlsxwriter.Workbook(filename)
         for (i, table) in enumerate(self.tables):
-            name = table.title if need_title else '识别表格' + str(i)
+            name = table.title[:31] if need_title else '识别表格' + str(i)  # clip to 31 chars to avoid Excel worksheet name exception
             worksheet = workbook.add_worksheet(name=name)
             for (row_num, row) in enumerate(table.rows):
                 row: List[TableCell]
