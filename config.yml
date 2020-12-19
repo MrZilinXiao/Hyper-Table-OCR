@@ -9,8 +9,8 @@ table_line:
   unet:
     model_path: './models/table-line.h5'
     input_shape: [512, 512]
-    hprob: 0.5
-    vprob: 0.5
+    hprob: 0.7
+    vprob: 0.7
   traditional:
     placeholder: 'placeholder'
 ocr:

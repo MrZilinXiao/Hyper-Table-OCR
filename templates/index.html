@@ -63,7 +63,7 @@
         }
 
         .background_withhight {
-            height: 300px;
+            height: 400px;
             background-color: rgba(86, 61, 124, .15);
             border: 1px solid rgba(86, 61, 124, .2);
         }
@@ -389,7 +389,7 @@
                     var ws = wb.Sheets[wsName];
                     const excelView = document.getElementById('excel_view');
                     // 渲染
-                    excelView.innerHTML = XLSX.utils.sheet_to_html(ws, {id: 'excel_table" class="table table-hover table-bordered'});
+                    excelView.innerHTML = XLSX.utils.sheet_to_html(ws, {id: 'excel_table" class="table table-hover table-bordered" style="table-layout:fixed'});
                 }
 
                 req.send();

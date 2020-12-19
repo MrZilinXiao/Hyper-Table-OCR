@@ -201,69 +201,72 @@ class Table(object):
         for i in range(len(self.table_cells)):
             if i == len(self.table_cells) - 1:  # last cell, should break
                 row.append(self.table_cells[i])
-                self.rows.append(row)
+                self.rows.append(list(sorted(row, key=lambda cell: cell.left_x)))
                 break
             row.append(self.table_cells[i])
             if not np.isclose(row_y, self.table_cells[i + 1].upper_y, atol=delta_y):  # go for a new row
-                self.rows.append(row)
+                self.rows.append(list(sorted(row, key=lambda cell: cell.left_x)))
                 row = []
             row_y = self.table_cells[i + 1].upper_y  # update latest row_y
 
         # 1. build table through greedy searching
-        self.rows: np.ndarray[List[TableCell]] = np.array(self.rows)  # go numpy for list-index
-        rows_num = np.array([len(row) for row in self.rows])
-        self.row_num = np.max(rows_num)
-        merged_rows_idx = np.where(rows_num < self.row_num)
-        complete_rows_idx = np.where(rows_num == self.row_num)[0].tolist()
+        try:
+            self.rows: np.ndarray[List[TableCell]] = np.array(self.rows)  # go numpy for list-index
+            rows_num = np.array([len(row) for row in self.rows])
+            self.row_num = np.max(rows_num)
+            merged_rows_idx = np.where(rows_num < self.row_num)
+            complete_rows_idx = np.where(rows_num == self.row_num)[0].tolist()
 
-        # set row_range (temporary)
-        for row_num, row in enumerate(self.rows):
-            for cell in row:
-                cell.row_range = [row_num, row_num]
+            # set row_range (temporary)
+            for row_num, row in enumerate(self.rows):
+                for cell in row:
+                    cell.row_range = [row_num, row_num]
 
-        # calculate col_range by delta_x
-        for k, merged_row in enumerate(self.rows[merged_rows_idx]):
-            merged_row: List[TableCell]
-            closest_complete_row_idx = self._closest_idx(complete_rows_idx,
-                                                         merged_rows_idx[0][k])  # find the closest row idx
-            right_match = lambda k1, k2: np.isclose(merged_row[k1].right_x,
-                                                    self.rows[complete_rows_idx[closest_complete_row_idx]][k2].right_x,
-                                                    atol=delta_x)
-            left_idx = 0
-            checkpoints = []
-            for i in range(len(merged_row)):
-                while not right_match(i, left_idx):
+            # calculate col_range by delta_x
+            for k, merged_row in enumerate(self.rows[merged_rows_idx]):
+                merged_row: List[TableCell]
+                closest_complete_row_idx = self._closest_idx(complete_rows_idx,
+                                                             merged_rows_idx[0][k])  # find the closest row idx
+                right_match = lambda k1, k2: np.isclose(merged_row[k1].right_x,
+                                                        self.rows[complete_rows_idx[closest_complete_row_idx]][k2].right_x,
+                                                        atol=delta_x)
+                left_idx = 0
+                checkpoints = []
+                for i in range(len(merged_row)):
+                    while not right_match(i, left_idx):
+                        left_idx += 1
+                    checkpoints.append(left_idx)
                     left_idx += 1
-                checkpoints.append(left_idx)
-                left_idx += 1
-                if left_idx >= len(self.rows[complete_rows_idx[closest_complete_row_idx]]):
+                    if left_idx >= len(self.rows[complete_rows_idx[closest_complete_row_idx]]):
+                        break
+
+                if len(merged_row) != len(checkpoints):  # this happens when unmerged row is detected incorrectly!
+                    raise RuntimeError("表格重建失败，未识别的表格形式，请尝试其他的表格重建方法！")
+
+                if not checkpoints:
                     break
+                range_l, range_r = 0, -1
+                for j in range(len(merged_row)):
+                    range_r = checkpoints[j]
+                    merged_row[j].col_range = [range_l, range_r]
+                    range_l = range_r + 1
+            for kk, unmerged_row in enumerate(self.rows[complete_rows_idx]):
+                for jj in range(len(unmerged_row)):
+                    unmerged_row[jj].col_range = [jj, jj]
 
-            if len(merged_row) != len(checkpoints):  # this happens when unmerged row is detected incorrectly!
-                raise RuntimeError("表格重建失败，未识别的表格形式，请尝试其他的表格重建方法！")
-
-            if not checkpoints:
-                break
-            range_l, range_r = 0, -1
-            for j in range(len(merged_row)):
-                range_r = checkpoints[j]
-                merged_row[j].col_range = [range_l, range_r]
-                range_l = range_r + 1
-        for kk, unmerged_row in enumerate(self.rows[complete_rows_idx]):
-            for jj in range(len(unmerged_row)):
-                unmerged_row[jj].col_range = [jj, jj]
-
-        # remove cells who overlap with others too much
-        for ii in range(len(self.rows) - 1, 0, -1):
-            upper_row = self.rows[ii - 1]
-            for kk, cell in enumerate(self.rows[ii][::-1]):
-                _sum = 0.0
-                for other in upper_row:
-                    _sum += cell.shape.intersection(other.shape).area
-                print("%.4f" % (_sum / cell.shape.area))
-                if _sum / cell.shape.area > overlap_thr:
-                    self.rows[ii].pop(kk)
-                    print('pop one cell!')
+            # remove cells who overlap with others too much
+            for ii in range(len(self.rows) - 1, 0, -1):
+                upper_row = self.rows[ii - 1]
+                for kk, cell in enumerate(self.rows[ii][::-1]):
+                    _sum = 0.0
+                    for other in upper_row:
+                        _sum += cell.shape.intersection(other.shape).area
+                    print("%.4f" % (_sum / cell.shape.area))
+                    if _sum / cell.shape.area > overlap_thr:
+                        self.rows[ii].pop(kk)
+                        print('pop one cell!')
+        except IndexError as e:
+            raise RuntimeError("表格重建失败，请尝试开启角度纠正！")
 
 
 if __name__ == '__main__':
