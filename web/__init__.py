@@ -226,7 +226,7 @@ class WebHandler:
                 det=[t_det.msecs, os.path.join(req_id + '_table.jpg')]
             )
         cv2.imwrite(os.path.join(self.static_prefix, req_id + '_cell.jpg'), tmp_cell)
-        self.to_excel(filename=os.path.join(self.static_prefix, req_id + '.xlsx'), need_title=not t_detection)
+        self.to_excel(filename=os.path.join(self.static_prefix, req_id + '.xlsx'), need_title=(not t_detection) or len(tables) == 1)
         ret_stages.update(excel=req_id + '.xlsx')
 
         return ret_stages

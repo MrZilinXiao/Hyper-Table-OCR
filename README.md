@@ -85,6 +85,6 @@ WIP
 
 ## Authors
 
-*This project is a participator of the 1st MegMeet Cup Technology Innovation Competition of Sichuan University. Huangwei Wu([@ndwuhuangwei](https://github.com/ndwuhuangwei)) is our team leader, while he, Zilin Xiao([@MrZilinXiao](https://github.com/MrZilinXiao)) and Ruinan Fan all act as key developers of this project. It's impossible to complete this work without their effort.*
+*This project is a participator of the 1st MegMeet Cup Technology Innovation Competition of Sichuan University. Huangwei Wu([@ndwuhuangwei](https://github.com/ndwuhuangwei)) is our team leader, while he, Zilin Xiao([@MrZilinXiao](https://github.com/MrZilinXiao)) and Ruinan Fan([@ruinanfan](https://github.com/ruinanfan)) all act as key developers of this project. It's impossible to complete this work without their effort.*
 
 ## Acknowledgement
