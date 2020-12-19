@@ -1,7 +1,7 @@
-numpy~=1.19.4
-PyYAML~=5.3.1
-opencv-python~=4.4.0.46
-pytest~=6.1.2
+numpy
+PyYAML
+opencv-python
+pytest
 scipy~=1.3.3
 Pillow~=7.2.0
 pandas~=1.1.4
