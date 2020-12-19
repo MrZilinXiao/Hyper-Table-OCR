@@ -8,7 +8,7 @@ import numpy as np
 
 
 class HEDNet(nn.Module):
-    def __init__(self):
+    def __init__(self, ckpt_path="./models/network-bsds500.pytorch"):
         super(HEDNet, self).__init__()
         self.netVggOne = torch.nn.Sequential(
             torch.nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, stride=1, padding=1),
@@ -65,6 +65,7 @@ class HEDNet(nn.Module):
             torch.nn.Conv2d(in_channels=5, out_channels=1, kernel_size=1, stride=1, padding=0),
             torch.nn.Sigmoid()
         )
+        self.load_weight(ckpt_path)
 
     def load_weight(self, filename='network-bsds500.pytorch'):
         checkpoint = torch.load(filename, map_location='cpu')

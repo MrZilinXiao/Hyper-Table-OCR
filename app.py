@@ -29,7 +29,8 @@ app = Flask(__name__, static_url_path='',
 class MainView(views.View, ABC):
     methods = ['GET']
     config_dict = yaml.load(open('./config.yml', 'r'), Loader=yaml.Loader)
-    web_handler = WebHandler(config_dict, static_folder=app.static_folder, local_no_gpu_test=True)
+    # web_handler = WebHandler(config_dict, static_folder=app.static_folder, local_no_gpu_test=True)
+    web_handler = WebHandler(config_dict, static_folder=app.static_folder)
     _cell_mapping = {
         'unet': 'UNet网格线分割',
         'traditional': '传统方法分割'

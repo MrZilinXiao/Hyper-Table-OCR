@@ -1,13 +1,13 @@
 preprocessing:
-  hed_path: './network-bsds500.pytorch'
+  hed_path: './models/network-bsds500.pytorch'
 table_detection:
-  model_path: './new_epoch_24.pth'
+  model_path: './models/new_epoch_24.pth'
   config_path: './cascade_mask_rcnn_hrnetv2p_w32_20e.py'
   score_thr: 0.85
 table_line:
   type: 'unet'
   unet:
-    model_path: './table-line.h5'
+    model_path: './models/table-line.h5'
     input_shape: [512, 512]
     hprob: 0.5
     vprob: 0.5
@@ -15,14 +15,14 @@ table_line:
     placeholder: 'placeholder'
 ocr:
   paddle:
-    det_path: "./inference/ch_ppocr_server_v1.1_det_infer/"
-    rec_path: "./inference/ch_ppocr_server_v1.1_rec_infer/"
+    det_path: "./models/ch_ppocr_server_v1.1_det_infer/"
+    rec_path: "./models/ch_ppocr_server_v1.1_rec_infer/"
   paddle_lite:
-    det_path: "./inference/ch_ppocr_server_v1.1_det_infer/"
-    rec_path: "./inference/ch_ppocr_mobile_v1.1_rec_infer/"
+    det_path: "./models/ch_ppocr_server_v1.1_det_infer/"
+    rec_path: "./models/ch_ppocr_mobile_v1.1_rec_infer/"
   chineseocr:
-    det_path: ""
-    rec_path: ""
+    det_path: "./models/dbnet.onnx"
+    rec_path: "./models/ocr-lstm.pth"
 web:
   host: '0.0.0.0'
   port: 5000
