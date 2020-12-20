@@ -5,7 +5,11 @@ A carefully-designed OCR pipeline for universal boarded table recognition and re
 This pipeline covers image preprocessing, table detection(optional), text OCR, table cell extraction, table reconstruction.
 
 ## Demo
+![gif demo](https://upyun.mrxiao.net/img/demo.gif)
+
 WIP
+Demo Video (In English): [YouTube]()
+Demo Video (In Chinese): [Bilibili]()
 
 ## Features
 
@@ -48,7 +52,7 @@ This project is developed and tested on:
 - mmdetection 2.7.0
 - onnxruntime-gpu 1.6.0
 
-An NVIDIA GPU device is compulsory for reasonable inference duration, while GPU with less than 6GB VRAM may experience `Out of Memory` exception when loading multiple models. You may comment some models in `web/__init__.py` if
+An NVIDIA GPU device is compulsory for reasonable inference duration, while GPU with less than 6GB VRAM may experience `Out of Memory` exception when loading multiple models. You may comment some models in `web/__init__.py` if experiencing such situation.
 
 No version-specific framework feature is used in this project, so this means you could still enjoy it with lower versions of these frameworks. However, at this time(19th Dec, 2020), users with RTX 3000 Series device may not get compiled binary of Tensorflow, onnxruntime-gpu, mmdetection, PaddlePaddle via `pip` or `conda`. Also, for maximum device utilization rate, we strongly recommend all users to install these deep learning library by building from source.
 
