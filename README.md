@@ -11,7 +11,7 @@ Demo Video (In English): [YouTube](https://youtu.be/v2pe6cAofcw)
 
 [![Hyper Table Recognition: A carefully-designed Table OCR pipeline](https://res.cloudinary.com/marcomontalbano/image/upload/v1608561697/video_to_markdown/images/youtube--v2pe6cAofcw-c05b58ac6eb4c4700831b2b3070cd403.jpg)](https://youtu.be/v2pe6cAofcw "Hyper Table Recognition: A carefully-designed Table OCR pipeline")
 
-Demo Video WIP (In Chinese): [Bilibili]()
+Demo Video WIP (In Chinese): [Bilibili](https://www.bilibili.com/video/BV1K64y1Z7XB)
 
 ## Features
 
