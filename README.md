@@ -154,6 +154,9 @@ class OCRHandler(metaclass=abc.ABCMeta):
 
 [`WebHandler.pipeline()`](https://github.com/MrZilinXiao/Hyper-Table-OCR/blob/0cda4e9c1fafadb6e375c1bfd5fc54e10d3f8c8e/web/__init__.py#L111) in `web/__init__.py`
 
+## Future Plans
+- [ ] Speed up inference via async-processing on dual GPUs.
+
 ## Authors
 
 *This project is a participator of the 1st MegMeet Cup Technology Innovation Competition of Sichuan University. Huangwei Wu([@ndwuhuangwei](https://github.com/ndwuhuangwei)) is our team leader, while he, Zilin Xiao([@MrZilinXiao](https://github.com/MrZilinXiao)) and Ruinan Fan([@ruinanfan](https://github.com/ruinanfan)) all act as key developers of this project. It's impossible to complete this work without their effort.*
