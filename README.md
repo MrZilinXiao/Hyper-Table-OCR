@@ -1,8 +1,10 @@
-# Hyper-Table-Recognition
+# Hyper-Table-OCR
 
 A carefully-designed OCR pipeline for universal boarded table recognition and reconstruction.
 
 This pipeline covers image preprocessing, table detection(optional), text OCR, table cell extraction, table reconstruction.
+
+Are you seeking ideas for your own work? Visit [my blog post on Hyper-Table-OCR](https://mrxiao.net/hyper-table-ocr.html) to see more!
 
 ## Demo
 
