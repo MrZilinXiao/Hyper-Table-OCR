@@ -6,6 +6,8 @@ This pipeline covers image preprocessing, table detection(optional), text OCR, t
 
 Are you seeking ideas for your own work? Visit [my blog post on Hyper-Table-OCR](https://mrxiao.net/hyper-table-ocr.html) to see more!
 
+**Update on 2021-08-20: Happy to see that Baidu has released their [PP-Structure](https://github.com/PaddlePaddle/PaddleOCR/blob/release/2.2/ppstructure/README.md), which provides higher robustness due to its DL-driven structure prediction feature, instead of simple matching in our work.**
+
 ## Demo
 
 ![gif demo](https://upyun.mrxiao.net/img/demo.gif)
