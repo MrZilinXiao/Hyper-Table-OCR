@@ -78,7 +78,7 @@ An NVIDIA GPU device is compulsory for reasonable inference duration, while GPU 
 Confirm all deep learning frameworks installation via:
 
 ```bash
-python -c "import tensorflow as tf; print(tf.__version__); import torch; print(torch.__version__); import paddle; print(paddle.__version__); import onnxruntime as rt; print(rt.__version__); import mmdets; print(mmdet.__version__)"
+python -c "import tensorflow as tf; print(tf.__version__); import torch; print(torch.__version__); import paddle; print(paddle.__version__); import onnxruntime as rt; print(rt.__version__); import mmdet; print(mmdet.__version__)"
 ```
 
 Then install other necessary libraries via:
@@ -160,10 +160,6 @@ class OCRHandler(metaclass=abc.ABCMeta):
 
 ## Future Plans
 - [ ] Speed up inference via async-processing on dual GPUs.
-
-## Authors
-
-*This project is a participator of the 1st MegMeet Cup Technology Innovation Competition of Sichuan University. Huangwei Wu([@ndwuhuangwei](https://github.com/ndwuhuangwei)) is our team leader, while he, Zilin Xiao([@MrZilinXiao](https://github.com/MrZilinXiao)) and Ruinan Fan([@ruinanfan](https://github.com/ruinanfan)) all act as key developers of this project. It's impossible to complete this work without their effort.*
 
 **Congratulations! This project earns a GRAND PRIZE(2 out of 72 participators) of the aforementioned competition!**
 
