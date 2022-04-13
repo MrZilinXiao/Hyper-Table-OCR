@@ -169,3 +169,4 @@ class OCRHandler(metaclass=abc.ABCMeta):
 - [ChineseOCR_lite](https://github.com/ouyanghuiyu/chineseocr_lite): Super light OCR inference tool kit.
 - [CascadeTabNet](https://github.com/DevashishPrasad/CascadeTabNet): An automatic table recognition method for interpretation of tabular data in document images.
 - [pytorch-hed](https://github.com/sniklaus/pytorch-hed): An unofficial implementation of Holistically-Nested Edge Detection using PyTorch.
+- [table-detect](https://github.com/chineseocr/table-detect/): Excellent work providing us with the U-Net code and pretrained weight.
